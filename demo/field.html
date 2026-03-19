@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>現場バイヤーアプリ | BASEBANK</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Inter:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/field.css">
+</head>
+<body>
+<div id="field-app">
+
+  <!-- ============ ナビゲーション ============ -->
+  <nav class="app-nav" id="main-nav">
+    <div class="nav-logo">
+      <div class="nav-logo-icon"><i class="fa-solid fa-gem"></i></div>
+      <span>BASEBANK 現場</span>
+    </div>
+    <button class="nav-logout hidden" id="nav-logout" onclick="doLogout()" title="ログアウト">
+      <i class="fa-solid fa-right-from-bracket"></i>
+    </button>
+  </nav>
+
+
+
+  <!-- =====================================================
+       SCREEN 0: ログイン
+       ===================================================== -->
+  <div class="screen" id="screen-0">
+    <div style="text-align:center;padding:var(--space-xl) 0 var(--space-lg)">
+      <div style="width:64px;height:64px;background:var(--accent-blue);border-radius:var(--radius-xl);display:inline-flex;align-items:center;justify-content:center;margin-bottom:var(--space-md);box-shadow:0 4px 20px rgba(29,78,216,0.3)">
+        <i class="fa-solid fa-gem" style="font-size:28px;color:#fff"></i>
+      </div>
+      <div style="font-size:22px;font-weight:700;color:var(--text-primary)">BASEBANK 現場アプリ</div>
+      <div style="font-size:13px;color:var(--text-secondary);margin-top:6px">IDとパスワードを入力してください</div>
+    </div>
+
+    <div class="card" style="margin-bottom:var(--space-lg)">
+      <div class="form-group" style="margin-bottom:var(--space-lg)">
+        <label class="form-label" style="font-size:13px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em">ログインID</label>
+        <input id="login-id" type="text" class="input-field" placeholder="例：furukawa.k" style="font-size:16px;padding:14px" oninput="loginInputChanged()">
+      </div>
+
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label" style="font-size:13px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em">パスワード</label>
+        <div style="position:relative">
+          <input id="login-password" type="password" class="input-field" placeholder="パスワードを入力"
+                 style="font-size:16px;padding:14px"
+                 oninput="loginInputChanged()"
+                 onkeypress="if(event.key==='Enter')doLogin()">
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-block btn-lg" id="login-btn" onclick="doLogin()" disabled>
+      <i class="fa-solid fa-right-to-bracket"></i>&nbsp; ログイン
+    </button>
+    <div style="text-align:center;margin-top:var(--space-md);font-size:12px;color:var(--text-muted)">デモモード: 入力値はすべて許可されます</div>
+  </div>
+
+  <!-- =====================================================
+       SCREEN 1: 出勤・レジ開け
+       ===================================================== -->
+  <div class="screen" id="screen-1">
+    <div class="screen-title" id="today-date">2026年3月8日（日）</div>
+    <div class="screen-subtitle">担当：<span id="today-staff">古川 健太</span>&nbsp; — レジを開けて業務を開始してください</div>
+
+    <!-- 会場ブロック -->
+    <div class="venue-block">
+      <div class="venue-header">
+        <div class="venue-icon"><i class="fa-solid fa-store"></i></div>
+        <div>
+          <div class="venue-name">本日の担当会場</div>
+          <div class="venue-sub" id="venue-sub">📍 コーナン 西宮今津 2F ロピア前</div>
+        </div>
+      </div>
+      <div class="venue-select-wrap">
+        <select id="venue-select"></select>
+      </div>
+    </div>
+
+    <!-- レジ金確認 -->
+    <div class="register-panel">
+      <div class="reg-label">前日繰越 / 本日準備金（表示額）</div>
+      <div class="reg-amount" id="reg-carryover">¥500,000</div>
+
+      <div class="reg-label">実際の現金有高を入力して突き合わせ</div>
+      <div class="form-group" style="margin-bottom:var(--space-sm)">
+        <input id="cash-input" type="number" class="input-field" style="font-size:20px;font-weight:700;text-align:right;font-family:'Inter',sans-serif;padding:14px 16px" placeholder="500000" oninput="onCashInput()">
+      </div>
+      <div class="diff-text" id="keypad-diff"></div>
+    </div>
+
+    <button class="btn btn-primary btn-block btn-lg" onclick="openRegister()">
+      <i class="fa-solid fa-lock-open"></i>&nbsp; レジを開けて業務開始
+    </button>
+  </div>
+
+  <!-- =====================================================
+       SCREEN 2: メインダッシュボード
+       ===================================================== -->
+  <div class="screen hidden" id="screen-2">
+    <!-- === ホーム === -->
+    <div id="view-home" class="sub-view">
+      <div class="screen-title">現場ダッシュボード</div>
+      <div class="screen-subtitle">
+        <i class="fa-solid fa-map-marker-alt"></i>
+        <span id="dashboard-venue">コーナン 西宮今津</span>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label"><i class="fa-solid fa-coins"></i> 本日買取額</div>
+          <div class="kpi-value" id="kpi-buy">¥0</div>
+          <div class="kpi-sub">累計成約分</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label"><i class="fa-solid fa-wallet"></i> レジ残高</div>
+          <div class="kpi-value" id="kpi-cash">¥500,000</div>
+          <div class="kpi-sub">現在の現金有高</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label"><i class="fa-solid fa-percent"></i> 成約率</div>
+          <div class="kpi-value" id="kpi-rate">—</div>
+          <div class="kpi-sub">本日の実績</div>
+        </div>
+      </div>
+
+      <div class="section-label"><i class="fa-solid fa-list-check"></i> 進行中の案件</div>
+      <div class="deal-list" id="active-deals">
+        <div class="empty-state"><i class="fa-regular fa-clock"></i>現在進行中の案件はありません</div>
+      </div>
+    </div>
+
+    <!-- === 受付管理 === -->
+    <div id="view-deals" class="sub-view hidden">
+      <div class="screen-title">受付管理</div>
+      <div class="screen-subtitle">本日の全案件一覧</div>
+      <div style="margin-bottom:var(--space-md);display:flex;gap:var(--space-sm);flex-wrap:wrap">
+        <input id="deals-search" type="text" class="input-field" placeholder="顧客名・カテゴリで検索..." style="flex:1;min-width:160px" oninput="renderDealsView()">
+        <select id="deals-filter-status" class="input-field select-field" style="width:auto;min-width:120px" onchange="renderDealsView()">
+          <option value="">全ステータス</option>
+          <option value="registering">登録中</option>
+          <option value="waiting">査定待ち</option>
+          <option value="negotiating">交渉中</option>
+          <option value="contracting">契約中</option>
+          <option value="done">完了</option>
+          <option value="nodeal">不成約</option>
+        </select>
+      </div>
+      <div id="deals-list-all" class="deal-list"></div>
+    </div>
+
+    <!-- === 精算 === -->
+    <div id="view-cashier" class="sub-view hidden">
+      <div class="screen-title">レジ精算</div>
+      <div class="screen-subtitle">本日の売上・精算状況</div>
+      <div id="cashier-content"></div>
+    </div>
+  </div>
+
+  <!-- =====================================================
+       SCREEN 3: 商材登録・査定依頼
+       ===================================================== -->
+  <div class="screen hidden" id="screen-3">
+    <div class="screen-back-row">
+      <button class="btn btn-secondary btn-sm" onclick="navBack()">
+        <i class="fa-solid fa-arrow-left"></i> 戻る
+      </button>
+    </div>
+    <div class="screen-title">商材登録・査定依頼</div>
+    <div class="screen-subtitle" id="screen3-media-badge"></div>
+
+    <!-- カテゴリ選択 -->
+    <div class="cat-tabs" id="cat-tabs"></div>
+
+    <!-- カテゴリ別入力フィールド -->
+    <div id="purity-weight-wrap"></div>
+
+    <!-- メモ -->
+    <div class="form-group">
+      <label class="form-label">お客様希望額</label>
+      <input id="customer-note" type="text" class="input-field" placeholder="例：¥80,000以上">
+    </div>
+    <div class="form-group">
+      <label class="form-label">状態・コメント</label>
+      <input id="item-condition" type="text" class="input-field" placeholder="例：傷あり、刻印確認済">
+    </div>
+
+    <!-- 写真エリア -->
+    <div class="photo-area" id="photo-area">
+      <div class="photo-area-icon"><i class="fa-solid fa-camera-retro"></i></div>
+      <div class="photo-area-text">タップして商材を撮影</div>
+      <div class="photo-area-sub">複数枚の連続撮影に対応</div>
+      <div class="photo-preview" id="photo-preview"></div>
+    </div>
+
+    <!-- リストに追加ボタン -->
+    <button class="btn btn-success btn-block btn-lg" onclick="addItemToList()" style="margin-bottom:var(--space-md)">
+      <i class="fa-solid fa-plus"></i>&nbsp; この商品をリストに追加
+    </button>
+
+    <!-- 査定商品リスト -->
+    <div id="items-list-area" class="hidden">
+      <div class="section-label" style="margin-top:var(--space-md)"><i class="fa-solid fa-list"></i> 査定商品リスト</div>
+      <div id="items-list" class="items-list"></div>
+    </div>
+
+    <button class="btn btn-primary btn-block btn-lg hidden" id="send-assessment-btn" onclick="sendAssessmentRequest()" style="margin-top:var(--space-md)">
+      <i class="fa-solid fa-paper-plane"></i>&nbsp; 本部に査定依頼を送信（<span id="items-count">0</span>点）
+    </button>
+  </div>
+
+  <!-- =====================================================
+       SCREEN 4: 査定結果・成約/不成約
+       ===================================================== -->
+  <div class="screen hidden" id="screen-4">
+    <div class="screen-back-row">
+      <button class="btn btn-secondary btn-sm" onclick="navBack()">
+        <i class="fa-solid fa-arrow-left"></i> 戻る
+      </button>
+    </div>
+    <div class="screen-title">査定結果</div>
+    <div class="screen-subtitle">本部からの査定内容を確認してください</div>
+
+    <!-- 査定待機 -->
+    <div class="waiting-card" id="waiting-card">
+      <div class="waiting-spinner"></div>
+      <div class="waiting-text">本部に照会中...</div>
+      <div class="waiting-sub">写真と詳細を確認の上、査定額を送信します</div>
+      <button class="btn btn-secondary btn-block" style="margin-top:var(--space-lg)" onclick="goHomeFromAssessment()">
+        <i class="fa-solid fa-house"></i> ホームに戻る
+      </button>
+    </div>
+
+    <!-- 本部回答 -->
+    <div id="hq-reply" class="hidden">
+      <div class="hq-reply-card">
+        <div class="hq-reply-header">
+          <div class="hq-avatar"><i class="fa-solid fa-user-tie"></i></div>
+          <div>
+            <div class="hq-name" id="reply-staff">鈴木 査定員</div>
+            <div class="hq-time" id="reply-time">14:38</div>
+          </div>
+          <span class="badge badge-gold" style="margin-left:auto">本部回答</span>
+        </div>
+
+        <div class="price-row">
+          <div class="price-box">
+            <div class="price-lbl">提示下代（買値）</div>
+            <div class="price-val buy" id="reply-buy">—</div>
+          </div>
+          <div class="price-box">
+            <div class="price-lbl">上代見込み（売値）</div>
+            <div class="price-val sell" id="reply-sell">—</div>
+          </div>
+        </div>
+        <div class="profit-badge">
+          <i class="fa-solid fa-chart-line"></i>
+          見込み粗利：<span id="reply-profit">—</span>
+        </div>
+
+        <div class="hq-comment" id="reply-comment">—</div>
+      </div>
+
+      <!-- チャット交渉 -->
+      <div class="section-label"><i class="fa-solid fa-comments"></i> 交渉チャット</div>
+      <div class="chat-area" id="chat-area"></div>
+      <div class="chat-input-row">
+        <input class="chat-input" id="chat-input" type="text" placeholder="本部にメッセージを送る..." onkeypress="if(event.key==='Enter')sendChatMsg()">
+        <button class="btn btn-secondary" onclick="sendChatMsg()"><i class="fa-solid fa-paper-plane"></i></button>
+      </div>
+
+      <!-- アクション -->
+      <div class="action-btn-row">
+        <button class="btn btn-danger action-btn" onclick="openNoDealModal()">
+          <i class="fa-solid fa-xmark"></i> 不成約
+        </button>
+        <button class="btn btn-success action-btn" onclick="proceedToDeal()">
+          <i class="fa-solid fa-handshake"></i> 成約に進む
+        </button>
+      </div>
+      <button class="btn btn-secondary btn-block" style="margin-top:var(--space-md)" onclick="goHomeFromAssessment()">
+        <i class="fa-solid fa-house"></i> ホームに戻る
+      </button>
+    </div>
+  </div>
+
+  <!-- =====================================================
+       SCREEN 5: 電子契約 & 現金決済
+       ===================================================== -->
+  <div class="screen hidden" id="screen-5">
+    <div class="screen-back-row">
+      <button class="btn btn-secondary btn-sm" onclick="navBack()">
+        <i class="fa-solid fa-arrow-left"></i> 戻る
+      </button>
+    </div>
+    <div class="screen-title">電子契約 & 現金決済</div>
+    <div class="screen-subtitle">内容を確認し、お客様にサインをいただいてください</div>
+
+    <!-- 取引明細 -->
+    <div class="deal-summary-card">
+      <div class="summary-row">
+        <span class="summary-label">カテゴリー</span>
+        <span class="summary-value" id="summary-cat">地金</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">品位</span>
+        <span class="summary-value" id="summary-purity">K18</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">重量</span>
+        <span class="summary-value" id="summary-weight">23.5g</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">流入経路</span>
+        <span class="summary-value" id="summary-media">チラシ</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">買取金額</span>
+        <span class="summary-value summary-total" id="summary-buyprice">¥65,000</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">支払後レジ残高</span>
+        <span class="summary-value text-blue" id="summary-cashafter">—</span>
+      </div>
+    </div>
+
+    <!-- 電子サイン -->
+    <div class="sign-area">
+      <div class="sign-label">
+        <span><i class="fa-solid fa-signature text-gold"></i>&nbsp; お客様サイン欄</span>
+        <button class="btn btn-secondary btn-sm" onclick="clearSignature()">クリア</button>
+      </div>
+      <canvas id="sign-canvas"></canvas>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:8px;text-align:center">
+        ← こちらにサインをお願いいたします →
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-block btn-lg" onclick="completePurchase()">
+      <i class="fa-solid fa-circle-check"></i>&nbsp; 買取完了（現金支払い）
+    </button>
+  </div>
+
+  <!-- =====================================================
+       モーダル: 流入経路選択
+       ===================================================== -->
+  <div class="modal-overlay hidden" id="media-modal" onclick="if(event.target===this)closeMediaModal()">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title"><i class="fa-solid fa-user-plus text-gold"></i>&nbsp; 新規受付</div>
+      <div class="modal-sub">お客様情報を入力してください</div>
+
+      <div class="form-group" style="margin-bottom:var(--space-md)">
+        <label class="form-label">お客様名</label>
+        <input id="customer-name-input" type="text" class="input-field" placeholder="例：田中 様">
+      </div>
+      <div class="form-group" style="margin-bottom:var(--space-lg)">
+        <label class="form-label">電話番号（任意）</label>
+        <input id="customer-phone-input" type="tel" class="input-field" placeholder="例：090-1234-5678">
+      </div>
+
+      <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:var(--space-sm)">流入経路を選択</div>
+      <div class="media-grid" id="media-grid"></div>
+      <button class="btn btn-secondary btn-block" style="margin-top:var(--space-lg)" onclick="closeMediaModal()">
+        キャンセル
+      </button>
+    </div>
+  </div>
+
+  <!-- =====================================================
+       モーダル: 不成約理由
+       ===================================================== -->
+  <div class="modal-overlay hidden" id="nodeal-modal" onclick="if(event.target===this)closeNoDealModal()">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title" style="color:var(--accent-red)">
+        <i class="fa-solid fa-xmark"></i>&nbsp; 不成約理由を選択
+      </div>
+      <div class="modal-sub">理由を記録してお客様データとして蓄積します</div>
+      <div class="no-deal-reasons" id="nodeal-reasons"></div>
+      <button class="btn btn-secondary btn-block" style="margin-top:var(--space-lg)" onclick="closeNoDealModal()">
+        キャンセル
+      </button>
+    </div>
+  </div>
+
+  <!-- =====================================================
+       完了オーバーレイ
+       ===================================================== -->
+  <div class="complete-overlay hidden" id="complete-overlay">
+    <div class="complete-icon"><i class="fa-solid fa-circle-check"></i></div>
+    <div class="complete-title">買取完了！</div>
+    <div class="complete-sub">
+      支払金額：<strong id="complete-amount">—</strong><br>
+      <span style="color:var(--text-muted)">レジ残高：<span id="complete-cash">—</span></span>
+    </div>
+    <div class="complete-btns">
+      <button class="btn btn-secondary" onclick="showReceiptPreview()">
+        <i class="fa-solid fa-receipt"></i> 明細を確認・印刷
+      </button>
+      <button class="btn btn-primary" onclick="closeComplete()">
+        <i class="fa-solid fa-house"></i> ダッシュボードへ
+      </button>
+    </div>
+  </div>
+
+  <!-- =====================================================
+       明細プレビュー モーダル
+       ===================================================== -->
+  <div class="modal-overlay hidden" id="receipt-modal" onclick="if(event.target===this)closeReceiptModal()">
+    <div class="modal-sheet" style="max-width:480px">
+      <div class="modal-handle"></div>
+      <div class="modal-title" style="text-align:center">
+        <i class="fa-solid fa-receipt text-blue"></i>&nbsp; 買取明細書
+      </div>
+      <div class="receipt-body" id="receipt-body"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);margin-top:var(--space-lg)">
+        <button class="btn btn-secondary" onclick="closeReceiptModal()">
+          <i class="fa-solid fa-arrow-left"></i> 戻る
+        </button>
+        <button class="btn btn-primary" onclick="printReceipt()">
+          <i class="fa-solid fa-print"></i> 印刷する
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================
+       プログレッシブ表示用要素の追加 
+       =====================================================-->
+  <div class="photo-area" id="photo-area">
+  <div class="photo-area-icon"><i class="fa-solid fa-camera-retro"></i></div>
+  <div class="photo-area-text">タップして商材を撮影</div>
+  <div id="total-upload-status" class="hidden" style="margin-top:10px;">
+    <div style="font-size:11px; color:var(--accent-blue); margin-bottom:4px;">画像アップロード中...</div>
+    <div style="width:100%; background:#e2e8f0; height:4px; border-radius:2px;">
+      <div id="total-upload-progress" style="width:0%; background:var(--accent-blue); height:100%; transition:width 0.3s;"></div>
+    </div>
+  </div>
+  <div class="photo-preview" id="photo-preview"></div>
+  </div>
+
+  <!-- =====================================================
+       案件詳細ドロワー
+       ===================================================== -->
+  <div class="modal-overlay hidden" id="deal-detail-modal" onclick="if(event.target===this)closeDealDetail()">
+    <div class="modal-sheet" style="max-width:520px">
+      <div class="modal-handle"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-lg)">
+        <div class="modal-title" style="margin:0"><i class="fa-solid fa-file-invoice text-blue"></i>&nbsp; 案件詳細</div>
+        <button class="btn btn-secondary btn-sm" onclick="closeDealDetail()">✕ 閉じる</button>
+      </div>
+      <div id="deal-detail-content"></div>
+      <div id="deal-detail-actions" style="margin-top:var(--space-lg)"></div>
+    </div>
+  </div>
+
+  <!-- FAB -->
+  <button class="fab hidden" id="fab" onclick="openNewCustomer()" title="新規受付">
+    <i class="fa-solid fa-plus"></i>
+  </button>
+
+  <!-- 本部通知ポップアップ -->
+  <div class="notification-popup hidden" id="hq-notification">
+    <div class="notif-icon"><i class="fa-solid fa-bell"></i></div>
+    <div class="notif-body">
+      <div class="notif-title">本部からの通知</div>
+      <div class="notif-text" id="notif-text"></div>
+    </div>
+    <button class="notif-close" onclick="closeNotification()">×</button>
+  </div>
+
+  <!-- =====================================================
+       ボトムナビ (モバイル・タブレット)
+       ===================================================== -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <button class="bottom-nav-item active" data-tab="home">
+      <i class="fa-solid fa-house"></i>
+      <span>ホーム</span>
+    </button>
+    <button class="bottom-nav-item" data-tab="deals">
+      <i class="fa-solid fa-list-check"></i>
+      <span>受付管理</span>
+    </button>
+    <button class="bottom-nav-item" data-tab="cashier">
+      <i class="fa-solid fa-cash-register"></i>
+      <span>精算</span>
+    </button>
+  </nav>
+
+</div><!-- /#field-app -->
+
+<script src="js/mockdata.js"></script>
+<script src="js/field.js"></script>
+</body>
+</html>
