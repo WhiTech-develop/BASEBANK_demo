@@ -1,0 +1,15 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-basebanksystem-dev-74fdc-authRole",
+      "UnauthRoleArn": "arn:aws:iam::378849626592:role/amplify-basebanksystem-dev-74fdc-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::378849626592:role/amplify-basebanksystem-dev-74fdc-authRole",
+      "Region": "ap-northeast-3",
+      "DeploymentBucketName": "amplify-basebanksystem-dev-74fdc-deployment",
+      "UnauthRoleName": "amplify-basebanksystem-dev-74fdc-unauthRole",
+      "StackName": "amplify-basebanksystem-dev-74fdc",
+      "StackId": "arn:aws:cloudformation:ap-northeast-3:378849626592:stack/amplify-basebanksystem-dev-74fdc/4b2e1a20-2467-11f1-8a50-0a0276253ec7",
+      "AmplifyAppId": "d14vwcw51w2b6v"
+    }
+  }
+}
