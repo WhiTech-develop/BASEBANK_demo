@@ -1,6 +1,13 @@
 /* ============================================================
    field.js — 最終完全版
    ============================================================ */
+const onUpdateDealSub = `subscription OnUpdateDeal {
+  onUpdateDeal {
+    id
+    status
+    hqAnswer
+  }
+}`;
 
 const Field = {
   screen: 0,
@@ -200,9 +207,43 @@ function renderItemsList() {
   document.getElementById('items-list').innerHTML = Field.pendingItems.map(item => `<div class="card" style="margin-bottom:8px; padding:10px; background:#f0f7ff;">${item.itemName} (${item.weight}g)</div>`).join('');
 }
 
+function setupSubscriptions() {
+  try {
+    const { API } = getAmplify();
+    
+    API.graphql({ query: onUpdateDealSub }).subscribe({
+      next: (data) => {
+        const updatedDeal = data.value.data.onUpdateDeal;
+        console.log("🔔 本部からの更新を検知:", updatedDeal);
+
+        // ダッシュボード（画面2）にいる場合、リストを再描画して緑色にする
+        if (Field.screen === 2) {
+          fetchActiveDeals(); 
+        }
+
+        // 個別案件の待機画面（画面4）にいる場合、結果を表示する
+        if (Field.screen === 4 && Field.currentDeal && updatedDeal.id === Field.currentDeal.id) {
+          if (updatedDeal.status === 'negotiating') {
+            handleRealTimeResponse(JSON.parse(updatedDeal.hqAnswer));
+          }
+        }
+      },
+      error: (err) => console.error("🚨 サブスクリプションエラー:", err)
+    });
+  } catch (err) {
+    // Amplifyの初期化が間に合わない場合は1秒後に再試行
+    setTimeout(setupSubscriptions, 1000);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const sel = document.getElementById('venue-select');
-  if (sel) { sel.innerHTML = MockData.venues.map(v => `<option value="${v.id}">${v.name}</option>`).join(''); Field.venueLabel = sel.options[0]?.text; }
+  if (sel) { 
+    sel.innerHTML = MockData.venues.map(v => `<option value="${v.id}">${v.name}</option>`).join(''); 
+    Field.venueLabel = sel.options[0]?.text; 
+  }
+  
+  // 写真撮影エリアの処理（既存のまま）
   const photoArea = document.getElementById('photo-area');
   if (photoArea) {
     photoArea.onclick = () => {
@@ -211,5 +252,9 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('photo-preview').innerHTML += `<div class="photo-thumb" style="width:50px; height:50px; background:#ddd; border-radius:5px; display:flex; align-items:center; justify-content:center;">📷</div>`;
     };
   }
+
+  // ★重要：ここでサブスクリプションを開始する
+  setupSubscriptions();
+
   showScreen(0);
 });
