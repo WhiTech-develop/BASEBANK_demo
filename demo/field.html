@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>現場バイヤーアプリ | BASEBANK</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Inter:wght@300;400;500;700;900&display=swap" rel="stylesheet">
@@ -11,19 +11,28 @@
   <link rel="stylesheet" href="css/common.css">
   <link rel="stylesheet" href="css/field.css">
 
-  <script src="js/aws-amplify.min.js"></script>
-<script src="aws-exports.js"></script>
-<script>
-  window.onload = function() {
-    // ローカルから読み込んだ Amplify を初期化
-    const amp = window.Amplify || window['aws-amplify'];
-    if (amp && window.awsmobile) {
-      amp.configure(window.awsmobile);
-      console.log("Local Amplify loaded and configured.");
-    }
-  };
-</script>
-<meta name="mobile-web-app-capable" content="yes">
+  <script src="js/lib.js"></script>
+  <script src="aws-exports.js"></script>
+  
+  <script>
+    // Amplifyを確実にグローバルに固定する
+    (function() {
+      const raw = window.Amplify || window['aws-amplify'] || window.aws_amplify;
+      if (raw) {
+        window.Amplify = raw.Amplify || raw.default || raw;
+        console.log("✅ Amplify Object Mapped");
+      }
+    })();
+
+    // 読み込み完了後に初期化
+    window.addEventListener('load', () => {
+      const config = window.awsmobile;
+      if (window.Amplify && window.Amplify.configure && config) {
+        window.Amplify.configure(config);
+        console.log("✅ AWS Amplify Configured");
+      }
+    });
+  </script>
 </head>
 <body>
 <div id="field-app">
@@ -33,33 +42,33 @@
       <div class="nav-logo-icon"><i class="fa-solid fa-gem"></i></div>
       <span>BASEBANK 現場</span>
     </div>
-    <button class="nav-logout hidden" id="nav-logout" onclick="doLogout()">
+    <button class="nav-logout hidden" id="nav-logout" onclick="showScreen(0)">
       <i class="fa-solid fa-right-from-bracket"></i>
     </button>
   </nav>
 
   <div class="screen" id="screen-0">
     <div style="text-align:center;padding:var(--space-xl) 0 var(--space-lg)">
-      <div style="width:64px;height:64px;background:var(--accent-blue);border-radius:var(--radius-xl);display:inline-flex;align-items:center;justify-content:center;margin-bottom:var(--space-md);box-shadow:0 4px 20px rgba(29,78,216,0.3)">
+      <div class="nav-logo-icon" style="width:64px;height:64px;background:var(--accent-blue);border-radius:16px;display:inline-flex;align-items:center;justify-content:center;margin:0 auto 16px;">
         <i class="fa-solid fa-gem" style="font-size:28px;color:#fff"></i>
       </div>
-      <div style="font-size:22px;font-weight:700;color:var(--text-primary)">BASEBANK 現場アプリ</div>
+      <div style="font-size:22px;font-weight:700;">BASEBANK 現場アプリ</div>
     </div>
     <div class="card">
       <div class="form-group">
         <label class="form-label">ログインID</label>
-        <input id="login-id" type="text" class="input-field" placeholder="例：furukawa.k" oninput="loginInputChanged()">
+        <input id="login-id" type="text" class="input-field" placeholder="Keita062" oninput="loginInputChanged()">
       </div>
       <div class="form-group">
         <label class="form-label">パスワード</label>
-        <input id="login-password" type="password" class="input-field" placeholder="パスワードを入力" oninput="loginInputChanged()" onkeypress="if(event.key==='Enter')doLogin()">
+        <input id="login-password" type="password" class="input-field" placeholder="1234" oninput="loginInputChanged()">
       </div>
     </div>
     <button class="btn btn-primary btn-block btn-lg" id="login-btn" onclick="doLogin()" disabled>ログイン</button>
   </div>
 
   <div class="screen hidden" id="screen-1">
-    <div class="screen-title" id="today-date">2026年3月8日</div>
+    <div class="screen-title">2026年3月8日</div>
     <div class="venue-block">
       <div class="venue-header">
         <div class="venue-icon"><i class="fa-solid fa-store"></i></div>
@@ -71,38 +80,30 @@
     </div>
     <div class="register-panel">
       <div class="reg-label">現金有高を入力</div>
-      <input id="cash-input" type="number" class="input-field" placeholder="500000">
+      <input id="cash-input" type="number" class="input-field" value="500000">
     </div>
     <button class="btn btn-primary btn-block btn-lg" onclick="openRegister()">業務開始</button>
   </div>
 
   <div class="screen hidden" id="screen-2">
-    <div id="view-home" class="sub-view">
-      <div class="kpi-grid">
-        <div class="kpi-card">
-          <div class="kpi-label">本日買取額</div>
-          <div class="kpi-value" id="kpi-buy">¥0</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">レジ残高</div>
-          <div class="kpi-value" id="kpi-cash">¥0</div>
-        </div>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">本日買取額</div>
+        <div class="kpi-value" id="kpi-buy">¥0</div>
       </div>
-      <div class="section-label">進行中の案件</div>
-      <div class="deal-list" id="active-deals"></div>
+      <div class="kpi-card">
+        <div class="kpi-label">レジ残高</div>
+        <div class="kpi-value" id="kpi-cash">¥0</div>
+      </div>
     </div>
-    <div id="view-deals" class="sub-view hidden">
-      <div class="screen-title">受付管理</div>
-      <div id="deals-list-all" class="deal-list"></div>
+    <div class="section-label">進行中の案件</div>
+    <div class="deal-list" id="active-deals">
+        <div style="padding:20px; text-align:center; color:#999;">進行中の案件はありません</div>
     </div>
-    <div id="view-cashier" class="sub-view hidden">
-      <div class="screen-title">精算</div>
-      <div id="cashier-content"></div>
-    </div>
-    <nav class="bottom-nav" id="bottom-nav">
-      <button class="bottom-nav-item active" data-tab="home" onclick="showSubView('home')"><i class="fa-solid fa-house"></i><span>ホーム</span></button>
-      <button class="bottom-nav-item" data-tab="deals" onclick="showSubView('deals')"><i class="fa-solid fa-list-check"></i><span>受付管理</span></button>
-      <button class="bottom-nav-item" data-tab="cashier" onclick="showSubView('cashier')"><i class="fa-solid fa-cash-register"></i><span>精算</span></button>
+    <nav class="bottom-nav">
+      <button class="bottom-nav-item active"><i class="fa-solid fa-house"></i><span>ホーム</span></button>
+      <button class="bottom-nav-item"><i class="fa-solid fa-list-check"></i><span>受付管理</span></button>
+      <button class="bottom-nav-item"><i class="fa-solid fa-cash-register"></i><span>精算</span></button>
     </nav>
   </div>
 
@@ -110,52 +111,70 @@
     <div class="screen-back-row"><button class="btn btn-secondary btn-sm" onclick="navBack()">戻る</button></div>
     <div class="cat-tabs" id="cat-tabs"></div>
     <div id="purity-weight-wrap"></div>
-    <div class="form-group"><label class="form-label">状態・コメント</label><input id="item-condition" type="text" class="input-field"></div>
-    <div class="photo-area" id="photo-area">
-      <div class="photo-area-icon"><i class="fa-solid fa-camera"></i></div>
-      <div id="total-upload-status" class="hidden">
-        <div id="total-upload-progress" style="width:0%; background:var(--accent-blue); height:4px;"></div>
-      </div>
-      <div class="photo-preview" id="photo-preview"></div>
+    <div class="form-group"><label class="form-label">状態・コメント</label><input id="item-condition" type="text" class="input-field" placeholder="例：傷あり"></div>
+    <div class="photo-area" id="photo-area" style="border:2px dashed #ccc; padding:20px; text-align:center; border-radius:10px; margin-bottom:15px; cursor:pointer;">
+      <div class="photo-area-icon" style="font-size:30px; color:#999;"><i class="fa-solid fa-camera"></i></div>
+      <div class="photo-preview" id="photo-preview" style="display:flex; gap:10px; justify-content:center; margin-top:10px;"></div>
     </div>
     <button class="btn btn-success btn-block btn-lg" onclick="addItemToList()">リストに追加</button>
-    <div id="items-list-area" class="hidden"><div id="items-list"></div></div>
-    <button class="btn btn-primary btn-block btn-lg hidden" id="send-assessment-btn" onclick="sendAssessmentRequest()">査定依頼を送信</button>
+    <div id="items-list-area" class="hidden" style="margin-top:20px;">
+        <div class="section-label">登録アイテム</div>
+        <div id="items-list"></div>
+        <button class="btn btn-primary btn-block btn-lg" style="margin-top:15px;" id="send-assessment-btn" onclick="sendAssessmentRequest()">査定依頼を送信</button>
+    </div>
   </div>
 
   <div class="screen hidden" id="screen-4">
-    <div class="waiting-card" id="waiting-card"><div class="waiting-spinner"></div><div>本部に照会中...</div></div>
+    <div class="waiting-card" id="waiting-card" style="text-align:center; padding:50px 20px;">
+        <div class="waiting-spinner" style="width:40px; height:40px; border:4px solid #f3f3f3; border-top:4px solid #3498db; border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 20px;"></div>
+        <div style="font-size:18px; font-weight:bold;">本部に照会中...</div>
+    </div>
     <div id="hq-reply" class="hidden">
-      <div class="hq-reply-card">
-        <div class="price-row">
-          <div class="price-box"><div>下代</div><div id="reply-buy"></div></div>
-          <div class="price-box"><div>上代</div><div id="reply-sell"></div></div>
+      <div class="hq-reply-card" style="background:#fff; padding:20px; border-radius:15px; box-shadow:0 4px 15px rgba(0,0,0,0.1); margin-bottom:20px;">
+        <div class="price-row" style="display:flex; justify-content:space-around; margin-bottom:15px;">
+          <div class="price-box" style="text-align:center;"><div style="color:#666; font-size:12px;">下代</div><div id="reply-buy" style="font-size:24px; font-weight:bold; color:var(--accent-blue);"></div></div>
+          <div class="price-box" style="text-align:center;"><div style="color:#666; font-size:12px;">上代</div><div id="reply-sell" style="font-size:24px; font-weight:bold; color:var(--accent-red);"></div></div>
         </div>
-        <div id="reply-comment" class="hq-comment"></div>
+        <div id="reply-comment" style="background:#f9f9f9; padding:10px; border-radius:8px; font-size:14px;"></div>
       </div>
-      <div class="action-btn-row">
-        <button class="btn btn-danger" onclick="openNoDealModal()">不成約</button>
-        <button class="btn btn-success" onclick="proceedToDeal()">成約</button>
+      <div style="display:flex; gap:10px;">
+        <button class="btn btn-danger btn-block" onclick="showScreen(2)">不成約</button>
+        <button class="btn btn-success btn-block" onclick="showScreen(5)">成約</button>
       </div>
     </div>
   </div>
 
   <div class="screen hidden" id="screen-5">
-    <div class="sign-area"><canvas id="sign-canvas"></canvas></div>
-    <button class="btn btn-primary btn-block btn-lg" onclick="completePurchase()">買取完了</button>
+    <div style="text-align:center; padding:40px 20px;">
+        <i class="fa-solid fa-circle-check" style="font-size:60px; color:var(--accent-green); margin-bottom:20px;"></i>
+        <h2>買取完了</h2>
+    </div>
+    <button class="btn btn-primary btn-block btn-lg" onclick="showScreen(2)">ホームへ</button>
   </div>
 
-  <div class="modal-overlay hidden" id="media-modal">
-    <div class="modal-sheet">
-      <div class="form-group"><label class="form-label">お客様名</label><input id="customer-name-input" type="text" class="input-field"></div>
-      <div class="media-grid" id="media-grid"></div>
+  <div class="modal-overlay hidden" id="media-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; display:flex; align-items:flex-end;">
+    <div class="modal-sheet" style="background:#fff; width:100%; padding:30px 20px; border-radius:20px 20px 0 0;">
+      <div class="form-group">
+        <label class="form-label">お客様名</label>
+        <input id="customer-name-input" type="text" class="input-field" placeholder="例：山田 太郎">
+      </div>
+      <label class="form-label" style="margin-top:15px; display:block;">流入販路を選択</label>
+      <div class="media-grid" id="media-grid" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; margin-top:10px;"></div>
+      <button class="btn btn-block" style="margin-top:20px; background:#eee;" onclick="document.getElementById('media-modal').classList.add('hidden')">キャンセル</button>
     </div>
   </div>
 
-  <button class="fab hidden" id="fab" onclick="openNewCustomer()"><i class="fa-solid fa-plus"></i></button>
+  <button class="fab hidden" id="fab" onclick="openNewCustomer()" style="position:fixed; bottom:80px; right:20px; width:60px; height:60px; border-radius:50%; background:var(--accent-blue); color:#fff; border:none; font-size:24px; box-shadow:0 4px 15px rgba(0,0,0,0.3); z-index:900;"><i class="fa-solid fa-plus"></i></button>
 
 </div>
+
 <script src="js/mockdata.js"></script>
 <script src="js/field.js"></script>
+
+<style>
+  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  .waiting-spinner { animation: spin 1s linear infinite; }
+</style>
+
 </body>
 </html>

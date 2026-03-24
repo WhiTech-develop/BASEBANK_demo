@@ -6,12 +6,18 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="css/common.css">
   <link rel="stylesheet" href="css/hq.css">
-  <script src="https://unpkg.com/aws-amplify@4.3.46/dist/aws-amplify.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="aws-exports.js"></script>
+  <script src="js/lib.js"></script> <script src="aws-exports.js"></script>
   <script>
-    const { Amplify, API, graphqlOperation } = window['aws-amplify'];
-    Amplify.configure(window.awsmobile);
+    (function init() {
+      const raw = window.Amplify || window['aws-amplify'];
+      const amp = raw?.Amplify || raw?.default || raw;
+      if (amp && amp.configure && window.awsmobile) {
+        amp.configure(window.awsmobile);
+        console.log("✅ HQ AWS Amplify 初期化成功");
+      } else {
+        setTimeout(init, 100);
+      }
+    })();
   </script>
 </head>
 <body>
@@ -20,8 +26,9 @@
     <div class="sidebar-header"><div class="sidebar-brand-name">BASEBANK</div></div>
     <nav class="sidebar-nav">
       <button class="nav-item active" data-tab="dashboard" onclick="showTab('dashboard')">ダッシュボード</button>
-      <button class="nav-item" data-tab="inventory" onclick="showTab('inventory')">商品DB</button>
-      <button class="nav-item" data-tab="assessment" onclick="showTab('assessment')">査定コンソール <span id="queue-badge" class="nav-badge">0</span></button>
+      <button class="nav-item" data-tab="assessment" onclick="showTab('assessment')">
+        査定コンソール <span id="queue-badge" class="nav-badge">0</span>
+      </button>
     </nav>
   </aside>
 
@@ -33,13 +40,12 @@
         <div class="kpi-hq"><div>総査定件数</div><div id="kpi-assessments">0</div></div>
         <div class="kpi-hq"><div>粗利合計</div><div id="kpi-profit">¥0</div></div>
       </div>
-      <canvas id="media-bar-chart" style="height:300px"></canvas>
     </div>
 
     <div id="tab-assessment" class="tab-content">
       <div class="assessment-layout">
         <div class="queue-list" id="queue-list"></div>
-        <div class="assess-panel" id="assess-panel"></div>
+        <div class="assess-panel" id="assess-panel">依頼を選択してください</div>
       </div>
     </div>
   </div>
