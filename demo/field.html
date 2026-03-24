@@ -15,20 +15,15 @@
   <script src="aws-exports.js"></script>
   
   <script>
-    // Amplifyを確実にグローバルに固定する
     (function() {
       const raw = window.Amplify || window['aws-amplify'] || window.aws_amplify;
       if (raw) {
         window.Amplify = raw.Amplify || raw.default || raw;
-        console.log("✅ Amplify Object Mapped");
       }
     })();
-
-    // 読み込み完了後に初期化
     window.addEventListener('load', () => {
-      const config = window.awsmobile;
-      if (window.Amplify && window.Amplify.configure && config) {
-        window.Amplify.configure(config);
+      if (window.Amplify && window.awsmobile) {
+        window.Amplify.configure(window.awsmobile);
         console.log("✅ AWS Amplify Configured");
       }
     });
@@ -36,7 +31,6 @@
 </head>
 <body>
 <div id="field-app">
-
   <nav class="app-nav" id="main-nav">
     <div class="nav-logo">
       <div class="nav-logo-icon"><i class="fa-solid fa-gem"></i></div>
@@ -49,7 +43,7 @@
 
   <div class="screen" id="screen-0">
     <div style="text-align:center;padding:var(--space-xl) 0 var(--space-lg)">
-      <div class="nav-logo-icon" style="width:64px;height:64px;background:var(--accent-blue);border-radius:16px;display:inline-flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+      <div style="width:64px;height:64px;background:var(--accent-blue);border-radius:16px;display:inline-flex;align-items:center;justify-content:center;margin:0 auto 16px;">
         <i class="fa-solid fa-gem" style="font-size:28px;color:#fff"></i>
       </div>
       <div style="font-size:22px;font-weight:700;">BASEBANK 現場アプリ</div>
@@ -68,7 +62,7 @@
   </div>
 
   <div class="screen hidden" id="screen-1">
-    <div class="screen-title">2026年3月8日</div>
+    <div class="screen-title">業務開始準備</div>
     <div class="venue-block">
       <div class="venue-header">
         <div class="venue-icon"><i class="fa-solid fa-store"></i></div>
@@ -79,7 +73,7 @@
       </div>
     </div>
     <div class="register-panel">
-      <div class="reg-label">現金有高を入力</div>
+      <div class="reg-label">準備金（現金有高）</div>
       <input id="cash-input" type="number" class="input-field" value="500000">
     </div>
     <button class="btn btn-primary btn-block btn-lg" onclick="openRegister()">業務開始</button>
@@ -97,28 +91,24 @@
       </div>
     </div>
     <div class="section-label">進行中の案件</div>
-    <div class="deal-list" id="active-deals">
-        <div style="padding:20px; text-align:center; color:#999;">進行中の案件はありません</div>
-    </div>
-    <nav class="bottom-nav">
-      <button class="bottom-nav-item active"><i class="fa-solid fa-house"></i><span>ホーム</span></button>
-      <button class="bottom-nav-item"><i class="fa-solid fa-list-check"></i><span>受付管理</span></button>
-      <button class="bottom-nav-item"><i class="fa-solid fa-cash-register"></i><span>精算</span></button>
-    </nav>
+    <div class="deal-list" id="active-deals"></div>
+    <div class="section-label" style="color:var(--accent-blue); margin-top:20px;">成約済み実績</div>
+    <div class="deal-list" id="completed-deals"></div>
+    <div class="section-label" style="color:#666; margin-top:20px;">不成約</div>
+    <div class="deal-list" id="no-deal-list"></div>
   </div>
 
   <div class="screen hidden" id="screen-3">
     <div class="screen-back-row"><button class="btn btn-secondary btn-sm" onclick="navBack()">戻る</button></div>
     <div class="cat-tabs" id="cat-tabs"></div>
     <div id="purity-weight-wrap"></div>
-    <div class="form-group"><label class="form-label">状態・コメント</label><input id="item-condition" type="text" class="input-field" placeholder="例：傷あり"></div>
+    <div class="form-group"><label class="form-label">状態・コメント</label><input id="item-condition" type="text" class="input-field" placeholder="例：傷なし"></div>
     <div class="photo-area" id="photo-area" style="border:2px dashed #ccc; padding:20px; text-align:center; border-radius:10px; margin-bottom:15px; cursor:pointer;">
-      <div class="photo-area-icon" style="font-size:30px; color:#999;"><i class="fa-solid fa-camera"></i></div>
+      <div class="photo-area-icon"><i class="fa-solid fa-camera" style="font-size:30px; color:#999;"></i></div>
       <div class="photo-preview" id="photo-preview" style="display:flex; gap:10px; justify-content:center; margin-top:10px;"></div>
     </div>
     <button class="btn btn-success btn-block btn-lg" onclick="addItemToList()">リストに追加</button>
     <div id="items-list-area" class="hidden" style="margin-top:20px;">
-        <div class="section-label">登録アイテム</div>
         <div id="items-list"></div>
         <button class="btn btn-primary btn-block btn-lg" style="margin-top:15px;" id="send-assessment-btn" onclick="sendAssessmentRequest()">査定依頼を送信</button>
     </div>
@@ -132,49 +122,41 @@
     <div id="hq-reply" class="hidden">
       <div class="hq-reply-card" style="background:#fff; padding:20px; border-radius:15px; box-shadow:0 4px 15px rgba(0,0,0,0.1); margin-bottom:20px;">
         <div class="price-row" style="display:flex; justify-content:space-around; margin-bottom:15px;">
-          <div class="price-box" style="text-align:center;"><div style="color:#666; font-size:12px;">下代</div><div id="reply-buy" style="font-size:24px; font-weight:bold; color:var(--accent-blue);"></div></div>
-          <div class="price-box" style="text-align:center;"><div style="color:#666; font-size:12px;">上代</div><div id="reply-sell" style="font-size:24px; font-weight:bold; color:var(--accent-red);"></div></div>
+          <div class="price-box" style="text-align:center;"><div style="color:#666; font-size:12px;">下代（買取）</div><div id="reply-buy" style="font-size:24px; font-weight:bold; color:var(--accent-blue);"></div></div>
+          <div class="price-box" style="text-align:center;"><div style="color:#666; font-size:12px;">上代（販売）</div><div id="reply-sell" style="font-size:24px; font-weight:bold; color:var(--accent-red);"></div></div>
         </div>
         <div id="reply-comment" style="background:#f9f9f9; padding:10px; border-radius:8px; font-size:14px;"></div>
       </div>
       <div style="display:flex; gap:10px;">
-        <button class="btn btn-danger btn-block" onclick="showScreen(2)">不成約</button>
-        <button class="btn btn-success btn-block" onclick="showScreen(5)">成約</button>
+        <button class="btn btn-danger btn-block" onclick="openNoDealModal()">不成約</button>
+        <button class="btn btn-success btn-block" onclick="showScreen(5)">成約・署名へ</button>
       </div>
     </div>
   </div>
 
   <div class="screen hidden" id="screen-5">
     <div style="text-align:center; padding:40px 20px;">
-        <i class="fa-solid fa-circle-check" style="font-size:60px; color:var(--accent-green); margin-bottom:20px;"></i>
-        <h2>買取完了</h2>
+        <i class="fa-solid fa-signature" style="font-size:60px; color:var(--accent-blue); margin-bottom:20px;"></i>
+        <h2>電子署名を受領</h2>
     </div>
-    <button class="btn btn-primary btn-block btn-lg" onclick="showScreen(2)">ホームへ</button>
+    <button class="btn btn-primary btn-block btn-lg" onclick="completePurchase()">買取完了（確定）</button>
   </div>
 
-  <div class="modal-overlay hidden" id="media-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; display:flex; align-items:flex-end;">
+  <div class="modal-overlay hidden" id="media-modal">
     <div class="modal-sheet" style="background:#fff; width:100%; padding:30px 20px; border-radius:20px 20px 0 0;">
       <div class="form-group">
         <label class="form-label">お客様名</label>
         <input id="customer-name-input" type="text" class="input-field" placeholder="例：山田 太郎">
       </div>
-      <label class="form-label" style="margin-top:15px; display:block;">流入販路を選択</label>
       <div class="media-grid" id="media-grid" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; margin-top:10px;"></div>
       <button class="btn btn-block" style="margin-top:20px; background:#eee;" onclick="document.getElementById('media-modal').classList.add('hidden')">キャンセル</button>
     </div>
   </div>
 
-  <button class="fab hidden" id="fab" onclick="openNewCustomer()" style="position:fixed; bottom:80px; right:20px; width:60px; height:60px; border-radius:50%; background:var(--accent-blue); color:#fff; border:none; font-size:24px; box-shadow:0 4px 15px rgba(0,0,0,0.3); z-index:900;"><i class="fa-solid fa-plus"></i></button>
+  <button class="fab hidden" id="fab" onclick="openNewCustomer()"><i class="fa-solid fa-plus"></i></button>
 
 </div>
-
 <script src="js/mockdata.js"></script>
 <script src="js/field.js"></script>
-
-<style>
-  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-  .waiting-spinner { animation: spin 1s linear infinite; }
-</style>
-
 </body>
 </html>
