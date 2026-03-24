@@ -2,391 +2,49 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>本部ダッシュボード | BASEBANK</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Inter:wght@300;400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="css/common.css">
   <link rel="stylesheet" href="css/hq.css">
+  <script src="https://unpkg.com/aws-amplify@4.3.46/dist/aws-amplify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="aws-exports.js"></script>
+  <script>
+    const { Amplify, API, graphqlOperation } = window['aws-amplify'];
+    Amplify.configure(window.awsmobile);
+  </script>
 </head>
 <body>
 <div id="hq-app">
-<div class="sidebar-backdrop" id="sidebar-backdrop"></div>
-  <!-- =====================================================
-       サイドバー
-       ===================================================== -->
   <aside class="sidebar">
-    <div class="sidebar-header">
-      <div class="sidebar-logo">
-        <div class="sidebar-logo-icon"><i class="fa-solid fa-gem"></i></div>
-        <div>
-          <div class="sidebar-brand-name">BASEBANK</div>
-          <div class="sidebar-brand-sub">本部管理システム</div>
-        </div>
-      </div>
-      <div class="sidebar-date" id="sidebar-date">2026年3月8日（日）</div>
-    </div>
-
+    <div class="sidebar-header"><div class="sidebar-brand-name">BASEBANK</div></div>
     <nav class="sidebar-nav">
-      <div class="nav-section-label">メニュー</div>
-
-      <button class="nav-item active" data-tab="dashboard">
-        <i class="fa-solid fa-chart-line"></i>
-        ダッシュボード
-      </button>
-
-      <button class="nav-item" data-tab="inventory">
-        <i class="fa-solid fa-boxes-stacked"></i>
-        商品データベース
-      </button>
-
-      <button class="nav-item" data-tab="assessment">
-        <i class="fa-solid fa-clipboard-list"></i>
-        査定コンソール
-        <span class="nav-badge" id="queue-badge">2</span>
-      </button>
-
-      <div class="nav-section-label" style="margin-top:var(--space-md)">その他</div>
-      <button class="nav-item" onclick="location.href='field.html'">
-        <i class="fa-solid fa-tablet-screen-button"></i>
-        現場アプリを開く
-      </button>
+      <button class="nav-item active" data-tab="dashboard" onclick="showTab('dashboard')">ダッシュボード</button>
+      <button class="nav-item" data-tab="inventory" onclick="showTab('inventory')">商品DB</button>
+      <button class="nav-item" data-tab="assessment" onclick="showTab('assessment')">査定コンソール <span id="queue-badge" class="nav-badge">0</span></button>
     </nav>
-
-    <div class="sidebar-footer">
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">
-        <i class="fa-solid fa-circle" style="color:var(--accent-green);font-size:7px;margin-right:4px"></i>
-        デモ環境 — すべてサンプルデータ
-      </div>
-      <div style="font-size:11px;color:var(--text-muted)">© 2026 株式会社BASEBANK</div>
-    </div>
   </aside>
 
-  <!-- =====================================================
-       メインコンテンツ
-       ===================================================== -->
   <div class="main-content">
+    <div class="topbar"><div class="topbar-title">リアルタイム本部管理</div></div>
 
-    <!-- トップバー -->
-    <div class="topbar">
-      <div style="display:flex;align-items:center">
-        <button class="hamburger-btn" id="hamburger-btn" aria-label="メニュー">
-          <i class="fa-solid fa-bars"></i>
-        </button>
-        <div>
-          <div class="topbar-title" id="topbar-title">リアルタイムダッシュボード</div>
-          <div class="topbar-sub" id="topbar-sub">全社 月次累計 / 催事別ステータス</div>
-        </div>
-      </div>
-      <div class="topbar-right">
-        <div class="live-badge">
-          <div class="live-dot"></div> LIVE
-        </div>
-      </div>
-    </div>
-
-    <!-- ==================================================
-         TAB 1: ダッシュボード
-         ================================================== -->
     <div id="tab-dashboard" class="tab-content active">
-
-      <!-- フィルターバー -->
-      <div class="dash-filter-bar">
-        <div class="dash-filter-group">
-          <label class="dash-filter-label">会場</label>
-          <select class="filter-select" id="dash-venue-filter" onchange="applyDashFilters()">
-            <option value="">全会場</option>
-          </select>
-        </div>
-        <div class="dash-filter-group">
-          <label class="dash-filter-label">媒体</label>
-          <select class="filter-select" id="dash-media-filter" onchange="applyDashFilters()">
-            <option value="">全媒体</option>
-          </select>
-        </div>
-        <div class="dash-filter-group">
-          <label class="dash-filter-label">バイヤー</label>
-          <select class="filter-select" id="dash-buyer-filter" onchange="applyDashFilters()">
-            <option value="">全バイヤー</option>
-          </select>
-        </div>
-        <button class="btn btn-secondary btn-sm" onclick="resetDashFilters()" style="align-self:flex-end">
-          <i class="fa-solid fa-rotate-left"></i> リセット
-        </button>
-      </div>
-
-      <!-- KPI row -->
       <div class="kpi-row">
-        <div class="kpi-hq">
-          <div class="kpi-hq-label"><i class="fa-solid fa-magnifying-glass"></i> 総査定件数</div>
-          <div class="kpi-hq-val" id="kpi-assessments">—</div>
-          <div class="kpi-hq-sub">3月累計</div>
-        </div>
-        <div class="kpi-hq">
-          <div class="kpi-hq-label"><i class="fa-solid fa-handshake"></i> 成約件数</div>
-          <div class="kpi-hq-val" id="kpi-deals">—</div>
-          <div class="kpi-hq-sub">3月累計</div>
-        </div>
-        <div class="kpi-hq">
-          <div class="kpi-hq-label"><i class="fa-solid fa-percent"></i> 成約率</div>
-          <div class="kpi-hq-val" id="kpi-rate">—</div>
-          <div class="kpi-hq-sub">本月平均</div>
-        </div>
-        <div class="kpi-hq">
-          <div class="kpi-hq-label"><i class="fa-solid fa-coins"></i> 粗利合計</div>
-          <div class="kpi-hq-val" id="kpi-profit">—</div>
-          <div class="kpi-hq-sub">3月累計</div>
-        </div>
-        <div class="kpi-hq">
-          <div class="kpi-hq-label"><i class="fa-solid fa-bullseye"></i> 目標達成率</div>
-          <div class="kpi-hq-val" id="kpi-target">—</div>
-          <div class="kpi-hq-sub">
-            <div class="target-bar-wrap">
-              <div class="target-bar-track">
-                <div class="target-bar-fill" id="target-bar" style="width:0%"></div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <div class="kpi-hq"><div>総査定件数</div><div id="kpi-assessments">0</div></div>
+        <div class="kpi-hq"><div>粗利合計</div><div id="kpi-profit">¥0</div></div>
       </div>
-
-      <!-- 会場別ステータス表 -->
-      <div class="section-header">
-        <div class="section-title"><i class="fa-solid fa-store text-blue"></i>&nbsp; 会場別 リアルタイムステータス</div>
-        <div class="section-right">本日 2026/03/08 現在</div>
-      </div>
-      <div class="venue-table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>会場 / バイヤー</th>
-              <th>本日売上</th>
-              <th>レジ残高</th>
-              <th>成約 / 査定</th>
-              <th>成約率</th>
-              <th>状態</th>
-            </tr>
-          </thead>
-          <tbody id="venue-tbody"></tbody>
-        </table>
-      </div>
-
-      <!-- グラフ -->
-      <div class="charts-row">
-        <div class="chart-card">
-          <div class="chart-title"><i class="fa-solid fa-chart-bar text-blue"></i>&nbsp; 媒体別 成約件数 & 粗利額</div>
-          <div class="chart-container">
-            <canvas id="media-bar-chart"></canvas>
-          </div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-title"><i class="fa-solid fa-chart-pie text-blue"></i>&nbsp; 成約率 内訳</div>
-          <div class="chart-container">
-            <canvas id="success-doughnut"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- 追加: リアルタイムアクティビティ -->
-      <div style="margin-top:var(--space-xl)">
-        <div class="section-header">
-          <div class="section-title"><i class="fa-solid fa-bolt text-blue"></i>&nbsp; 最近のアクティビティ</div>
-          <div class="section-right">直近の動き</div>
-        </div>
-        <div class="activity-feed" id="activity-feed"></div>
-      </div>
-
-      <!-- 追加: 媒体別実績サマリー -->
-      <div style="margin-top:var(--space-xl)">
-        <div class="section-header">
-          <div class="section-title"><i class="fa-solid fa-ranking-star text-blue"></i>&nbsp; 媒体別パフォーマンス</div>
-        </div>
-        <div class="media-perf-grid" id="media-perf-grid"></div>
-      </div>
+      <canvas id="media-bar-chart" style="height:300px"></canvas>
     </div>
 
-    <!-- ==================================================
-         TAB 2: 商品データベース
-         ================================================== -->
-    <div id="tab-inventory" class="tab-content">
-
-      <!-- サマリーKPI -->
-      <div id="inv-summary" class="inv-summary-row" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-md);margin-bottom:var(--space-lg)">
-        <div class="card" style="padding:var(--space-md)">
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px"><i class="fa-solid fa-database"></i> 総商品数</div>
-          <div id="inv-total-items" style="font-size:22px;font-weight:800;font-family:'Inter',sans-serif">—</div>
-        </div>
-        <div class="card" style="padding:var(--space-md)">
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px"><i class="fa-solid fa-coins"></i> 下代合計</div>
-          <div id="inv-total-buy" style="font-size:22px;font-weight:800;font-family:'Inter',sans-serif;color:var(--text-primary)">—</div>
-        </div>
-        <div class="card" style="padding:var(--space-md)">
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px"><i class="fa-solid fa-arrow-trend-up"></i> 上代合計</div>
-          <div id="inv-total-sell" style="font-size:22px;font-weight:800;font-family:'Inter',sans-serif;color:var(--accent-blue)">—</div>
-        </div>
-        <div class="card" style="padding:var(--space-md)">
-          <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px"><i class="fa-solid fa-chart-pie"></i> 粗利合計</div>
-          <div id="inv-total-profit" style="font-size:22px;font-weight:800;font-family:'Inter',sans-serif;color:var(--accent-green)">—</div>
-        </div>
-      </div>
-
-      <div class="toolbar">
-        <div class="toolbar-left">
-          <div class="search-box">
-            <i class="fa-solid fa-magnifying-glass icon"></i>
-            <input type="text" id="inv-search" placeholder="商品名・顧客名・バイヤー・カテゴリー..." oninput="filterInventory()">
-          </div>
-          <select class="filter-select" id="filter-cat" onchange="filterInventory()">
-            <option value="">カテゴリ：すべて</option>
-            <option value="地金">地金</option>
-            <option value="ジュエリー">ジュエリー</option>
-            <option value="ブランド">ブランド</option>
-            <option value="時計">時計</option>
-            <option value="その他">その他</option>
-          </select>
-          <select class="filter-select" id="filter-date" onchange="filterInventory()">
-            <option value="">日付：すべて</option>
-            <option value="2026-03-08">2026-03-08</option>
-            <option value="2026-03-07">2026-03-07</option>
-            <option value="2026-03-06">2026-03-06</option>
-            <option value="2026-03-05">2026-03-05</option>
-          </select>
-        </div>
-        <div class="toolbar-right">
-          <button class="btn btn-secondary btn-sm" onclick="exportCSV()">
-            <i class="fa-solid fa-file-csv"></i> CSV出力
-          </button>
-        </div>
-      </div>
-
-      <div class="inv-table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th style="width:88px">買取日</th>
-              <th>現場名</th>
-              <th>バイヤー</th>
-              <th>媒体</th>
-              <th>顧客名</th>
-              <th>カテゴリー</th>
-              <th>商品名</th>
-              <th style="width:60px">品位</th>
-              <th style="width:56px">重量</th>
-              <th style="width:90px">下代</th>
-              <th style="width:90px">上代</th>
-              <th style="width:90px">粗利</th>
-            </tr>
-          </thead>
-          <tbody id="inv-tbody"></tbody>
-        </table>
-        <div class="table-footer">
-          <span id="inv-count">—</span>
-          <span id="inv-profit">—</span>
-        </div>
-        <div class="inv-pagination" id="inv-pagination"></div>
-      </div>
-    </div>
-
-    <!-- ==================================================
-         TAB 3: 査定コンソール
-         ================================================== -->
     <div id="tab-assessment" class="tab-content">
-
-      <!-- 地金相場ウィジェット (全幅) -->
-      <div class="rate-widget" style="margin-bottom:var(--space-xl)">
-        <div class="rate-header">
-          <div class="rate-title">
-            <i class="fa-solid fa-chart-line"></i>&nbsp; 当日地金相場
-          </div>
-          <div class="rate-updated" id="rate-updated">更新：—</div>
-        </div>
-        <div class="rate-grid" id="rate-grid"></div>
-        <!-- 計算機 -->
-        <div style="margin-top:var(--space-md)">
-          <div style="font-size:12px;color:var(--text-secondary);margin-bottom:var(--space-sm)">
-            <i class="fa-solid fa-calculator"></i>&nbsp; 重量 × 相場 計算機
-          </div>
-          <div class="calc-row">
-            <div>
-              <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">相場（円/g）</div>
-              <div style="font-size:18px;font-weight:700;color:var(--accent-blue);font-family:'Inter',sans-serif" id="calc-rate">—</div>
-            </div>
-            <div class="calc-op">×</div>
-            <div>
-              <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">重量（g）</div>
-              <input class="calc-input" type="number" id="calc-weight" step="0.01" placeholder="23.50" oninput="updateCalc()">
-            </div>
-            <div class="calc-op">=</div>
-            <div style="text-align:right">
-              <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">試算額</div>
-              <div class="calc-result" id="calc-result">—</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- キューヘッダー -->
-      <div class="section-header" style="margin-top:0;margin-bottom:var(--space-md)">
-        <div class="section-title">
-          <i class="fa-solid fa-inbox"></i>&nbsp; 査定依頼キュー
-        </div>
-        <select class="filter-select" id="queue-sort" onchange="sortQueue()" style="min-width:140px;font-size:12px;padding:6px 10px">
-          <option value="time-desc">新着順</option>
-          <option value="time-asc">古い順</option>
-          <option value="status">未回答優先</option>
-          <option value="venue">会場名順</option>
-        </select>
-      </div>
-
-      <!-- 2カラム: キュー + 査定パネル -->
       <div class="assessment-layout">
-        <div class="queue-list-wrap">
-          <div class="queue-list" id="queue-list"></div>
-        </div>
-
-        <!-- 査定パネル -->
-        <div class="assess-panel" id="assess-panel">
-          <div class="assess-panel-empty">
-            <i class="fa-solid fa-clipboard-list"></i>
-            <div style="font-size:16px;font-weight:600;margin-bottom:8px">依頼を選択</div>
-            <div style="font-size:13px">左のキューから査定依頼を選んでください</div>
-          </div>
-        </div>
+        <div class="queue-list" id="queue-list"></div>
+        <div class="assess-panel" id="assess-panel"></div>
       </div>
     </div>
-
-  </div><!-- /.main-content -->
-</div><!-- /#hq-app -->
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  </div>
+</div>
 <script src="js/mockdata.js"></script>
 <script src="js/hq.js"></script>
-<script>
-  // サイドバー nav クリック時にトップバーのタイトルも更新
-  const tabTitles = {
-    dashboard:  ['ダッシュボード', '全社 月次累計 / 催事別ステータス'],
-    inventory:  ['商品データベース', '買取商品の一覧管理・フィルタ・CSV出力'],
-    assessment: ['査定コンソール', '現場からの査定依頼を処理'],
-  };
-  document.querySelectorAll('.nav-item[data-tab]').forEach(el => {
-    el.addEventListener('click', () => {
-      const t = tabTitles[el.dataset.tab];
-      if (t) {
-        document.getElementById('topbar-title').textContent = t[0];
-        document.getElementById('topbar-sub').textContent   = t[1];
-      }
-    });
-  });
-
-  // 相場ウィジェット: 選択した品位の相場レートを calc-rate に反映
-  const _origUpdateCalc = updateCalc;
-  updateCalc = function() {
-    const rate = MockData.goldRates[selectedRatePurity] || 0;
-    const rateEl = document.getElementById('calc-rate');
-    if (rateEl) rateEl.textContent = rate ? rate.toLocaleString() + ' 円/g' : '—';
-    _origUpdateCalc();
-  };
-</script>
 </body>
 </html>
