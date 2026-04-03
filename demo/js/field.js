@@ -220,6 +220,15 @@ async function addItemToList() {
     weight: parseFloat(document.getElementById('weight-input')?.value) || 0,
     photos: Field.capturedFiles.map(f => f.base64 || f)  // Base64画像データを含める
   };
+
+  console.log('📋 [addItemToList] itemData created:', {
+    category: itemData.category,
+    itemName: itemData.itemName,
+    weight: itemData.weight,
+    photoCount: itemData.photos.length,
+    photosIncluded: itemData.photos.length > 0 ? '✅ YES' : '❌ NO'
+  });
+
   try {
     let newItem = null;
     let dataSource = 'AppSync';
@@ -264,14 +273,56 @@ async function addItemToList() {
 
     console.log(`📊 [addItemToList] Data source: ${dataSource} | Category: ${itemData.category}, Weight: ${itemData.weight}g`);
 
+    // 【重要】newItem に photos が含まれているか確認
+    console.log('🔍 [addItemToList] newItem verification:', {
+      itemId: newItem.id,
+      itemName: newItem.itemName,
+      hasPhotos: newItem.photos ? 'YES ✅' : 'NO ❌',
+      photoCount: newItem.photos ? newItem.photos.length : 0,
+      firstPhotoPreview: newItem.photos && newItem.photos.length > 0 ?
+        newItem.photos[0].substring(0, 50) + '...' : 'N/A'
+    });
+
     Field.pendingItems.push(newItem);
-    renderItemsList();
+
+    // 【重要】pendingItems に newItem が追加されたか確認
+    console.log('📦 [addItemToList] pendingItems updated:', {
+      totalItems: Field.pendingItems.length,
+      lastItemPhotos: Field.pendingItems[Field.pendingItems.length - 1].photos ?
+        Field.pendingItems[Field.pendingItems.length - 1].photos.length + ' photos' : 'no photos'
+    });
+
+    renderItemsList();  // リストに画像付きで表示
+
+    // フォームをリセット（入力済みの画像はリストに保存済み）
+    console.log('🔄 [addItemToList] Resetting form for next item...');
+    console.log('⚠️  [addItemToList] Before reset - Field.capturedFiles:', Field.capturedFiles.length, 'files');
+
     document.getElementById('photo-preview').innerHTML = '';
+    document.getElementById('item-condition').value = '';
+    const weightInput = document.getElementById('weight-input');
+    if (weightInput) weightInput.value = '';
+    Field.capturedFiles = [];  // 次の入力用に画像をクリア
+
+    console.log('✅ [addItemToList] Form reset complete');
+    console.log('✅ [addItemToList] After reset - Field.capturedFiles:', Field.capturedFiles.length, 'files (OK - data saved in pendingItems)');
+    console.log('📊 [addItemToList] Current pendingItems count:', Field.pendingItems.length);
   } catch (err) { console.error('❌ [addItemToList] Unexpected error:', err); }
 }
 
 async function sendAssessmentRequest() {
   try {
+    // 【重要】送信前に pendingItems に画像が含まれているか確認
+    console.log('📤 [sendAssessmentRequest] Verifying pendingItems before sending:');
+    Field.pendingItems.forEach((item, idx) => {
+      console.log(`  Item ${idx + 1}:`, {
+        name: item.itemName,
+        hasPhotos: item.photos ? 'YES ✅' : 'NO ❌',
+        photoCount: item.photos ? item.photos.length : 0
+      });
+    });
+    console.log(`📊 [sendAssessmentRequest] Total items to send: ${Field.pendingItems.length}`);
+
     let dataSource = 'AppSync';
 
     // Try AppSync first
@@ -384,7 +435,27 @@ function renderCategoryFields() {
 function renderItemsList() {
   document.getElementById('items-list-area').classList.remove('hidden');
   document.getElementById('send-assessment-btn').classList.remove('hidden');
-  document.getElementById('items-list').innerHTML = Field.pendingItems.map(item => `<div class="card" style="margin-bottom:8px; padding:10px; background:#f0f7ff;">${item.itemName} (${item.weight}g)</div>`).join('');
+  document.getElementById('items-list').innerHTML = Field.pendingItems.map((item, idx) => {
+    // 画像を取得
+    const photos = item.photos || [];
+    const photoHtml = photos.length > 0 ? `
+      <div style="display:flex; gap:5px; margin-top:8px;">
+        ${photos.map((photo, i) => {
+          const src = typeof photo === 'string' && photo.startsWith('data:') ? photo : photo?.base64 || '';
+          return src ? `<img src="${src}" style="width:60px; height:60px; border-radius:4px; object-fit:cover;">` : '';
+        }).join('')}
+      </div>
+    ` : '<small style="color:#ccc; margin-top:8px; display:block;">画像なし</small>';
+
+    return `
+      <div class="card" style="margin-bottom:8px; padding:10px; background:#f0f7ff;">
+        <div style="margin-bottom:8px;">
+          <b>${item.itemName}</b> (${item.weight}g)
+        </div>
+        ${photoHtml}
+      </div>
+    `;
+  }).join('');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
