@@ -227,7 +227,13 @@ window.Store = {
     const dealIdx = deals.findIndex(d => d.id === item.dealID);
     if (dealIdx !== -1) {
       if (!deals[dealIdx].items) deals[dealIdx].items = [];
-      deals[dealIdx].items.push(item);
+
+      // localStorage 容量節約：photos フィールドを除外して保存
+      // （Base64 画像データはメモリ上でのみ保持）
+      const itemForStorage = { ...item };
+      delete itemForStorage.photos;
+
+      deals[dealIdx].items.push(itemForStorage);
       this.saveDeals(deals);
     }
     return item;
