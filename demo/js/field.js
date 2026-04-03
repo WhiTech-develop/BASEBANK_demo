@@ -124,14 +124,40 @@ function renderList(elementId, items, clickable, color) {
 }
 
 async function resumeDeal(dealId) {
-  const { API } = getAmplify();
-  const res = await API.graphql({ query: listDealsQuery });
-  const deal = res.data.listDeals.items.find(d => d.id === dealId);
-  if (deal && deal.status === 'negotiating') {
-    Field.currentDeal = deal;
-    showScreen(4);
-    handleRealTimeResponse(JSON.parse(deal.hqAnswer));
-  } else { alert("本部回答待ちです"); }
+  try {
+    let deal = null;
+    let dataSource = 'AppSync';
+
+    // Try AppSync first
+    try {
+      const { API } = getAmplify();
+      console.log('📡 [resumeDeal] Trying AppSync to fetch deal...');
+      const res = await API.graphql({ query: listDealsQuery });
+      const deals = res.data.listDeals.items;
+      deal = deals.find(d => d.id === dealId);
+      console.log('✅ [resumeDeal] AppSync success! Deal fetched:', dealId);
+    } catch (appsyncErr) {
+      // Fallback to mockdata: get deal from localStorage
+      dataSource = 'Mockdata';
+      console.warn('⚠️  [resumeDeal] AppSync failed:', appsyncErr.message);
+      console.log('📦 [resumeDeal] Fallback to mockdata...');
+
+      if (typeof window.Store !== 'undefined' && window.Store.getDeal) {
+        deal = window.Store.getDeal(dealId);
+        console.log('✅ [resumeDeal] Mockdata deal fetched:', dealId);
+      } else {
+        console.error('❌ [resumeDeal] Store not available');
+      }
+    }
+
+    console.log(`📊 [resumeDeal] Data source: ${dataSource} | Deal: ${deal?.customer}`);
+
+    if (deal && deal.status === 'negotiating') {
+      Field.currentDeal = deal;
+      showScreen(4);
+      handleRealTimeResponse(JSON.parse(deal.hqAnswer || "{}"));
+    } else { alert("本部回答待ちです"); }
+  } catch (err) { console.error('❌ [resumeDeal] Unexpected error:', err); }
 }
 
 function openNewCustomer() {
