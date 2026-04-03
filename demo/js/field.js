@@ -273,14 +273,22 @@ async function addItemToList() {
 
     console.log(`📊 [addItemToList] Data source: ${dataSource} | Category: ${itemData.category}, Weight: ${itemData.weight}g`);
 
-    // 【重要】newItem に photos が含まれているか確認
-    console.log('🔍 [addItemToList] newItem verification:', {
+    // localStorage 容量節約：newItem.photos は mockdata.addItem で削除されているため空
+    // メモリ上に photos を保持する
+    if (!newItem.photos) {
+      newItem.photos = [];
+    }
+
+    // メモリ上に Base64 画像データを割り当て
+    newItem.photos = itemData.photos;
+
+    console.log('🔍 [addItemToList] newItem prepared for memory:', {
       itemId: newItem.id,
       itemName: newItem.itemName,
-      hasPhotos: newItem.photos ? 'YES ✅' : 'NO ❌',
+      hasPhotos: newItem.photos ? 'YES ✅ (in memory)' : 'NO ❌',
       photoCount: newItem.photos ? newItem.photos.length : 0,
-      firstPhotoPreview: newItem.photos && newItem.photos.length > 0 ?
-        newItem.photos[0].substring(0, 50) + '...' : 'N/A'
+      storedInLocalStorage: 'NO (to save quota)',
+      storedInMemory: 'YES ✅'
     });
 
     Field.pendingItems.push(newItem);
