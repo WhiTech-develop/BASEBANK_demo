@@ -189,43 +189,139 @@ async function selectMedia(mediaId) {
 async function addItemToList() {
   const itemData = { dealID: Field.currentDeal.id, category: Field.selectedCategory, itemName: document.getElementById('item-condition').value || Field.selectedCategory, weight: parseFloat(document.getElementById('weight-input')?.value) || 0 };
   try {
-    const { API, Storage } = getAmplify();
-    const res = await API.graphql({ query: createItemMutation, variables: { input: itemData } });
-    const newItem = res.data.createItem;
-    for (let i = 0; i < Field.capturedFiles.length; i++) {
-        await Storage.put(`deals/${Field.currentDeal.id}/${newItem.id}_${i}.jpg`, Field.capturedFiles[i]);
+    let newItem = null;
+    let dataSource = 'AppSync';
+
+    // Try AppSync first
+    try {
+      const { API, Storage } = getAmplify();
+      console.log('📡 [addItemToList] Trying AppSync to create item...');
+      const res = await API.graphql({ query: createItemMutation, variables: { input: itemData } });
+      newItem = res.data.createItem;
+      console.log('✅ [addItemToList] AppSync success! Item created:', newItem.id);
+
+      // Upload photos to S3
+      for (let i = 0; i < Field.capturedFiles.length; i++) {
+          await Storage.put(`deals/${Field.currentDeal.id}/${newItem.id}_${i}.jpg`, Field.capturedFiles[i]);
+      }
+    } catch (appsyncErr) {
+      // Fallback to mockdata: create item in localStorage
+      dataSource = 'Mockdata';
+      console.warn('⚠️  [addItemToList] AppSync failed:', appsyncErr.message);
+      console.log('📦 [addItemToList] Fallback to mockdata - creating item locally...');
+
+      newItem = {
+        id: 'item_' + Date.now(),
+        dealID: Field.currentDeal.id,
+        category: itemData.category,
+        itemName: itemData.itemName,
+        weight: itemData.weight
+      };
+
+      if (typeof window.Store !== 'undefined' && window.Store.addItem) {
+        window.Store.addItem(newItem);
+        console.log('✅ [addItemToList] Mockdata item created:', newItem.id);
+      } else {
+        console.error('❌ [addItemToList] Store not available');
+      }
     }
+
+    console.log(`📊 [addItemToList] Data source: ${dataSource} | Category: ${itemData.category}, Weight: ${itemData.weight}g`);
+
     Field.pendingItems.push(newItem);
     renderItemsList();
     document.getElementById('photo-preview').innerHTML = '';
-  } catch (err) { console.error(err); }
+  } catch (err) { console.error('❌ [addItemToList] Unexpected error:', err); }
 }
 
 async function sendAssessmentRequest() {
   try {
-    const { API } = getAmplify();
-    await API.graphql({ query: updateDealMutation, variables: { input: { id: Field.currentDeal.id, status: 'waiting' } } });
+    let dataSource = 'AppSync';
+
+    // Try AppSync first
+    try {
+      const { API } = getAmplify();
+      console.log('📡 [sendAssessmentRequest] Trying AppSync to update deal status...');
+      await API.graphql({ query: updateDealMutation, variables: { input: { id: Field.currentDeal.id, status: 'waiting' } } });
+      console.log('✅ [sendAssessmentRequest] AppSync success! Deal status updated to waiting');
+    } catch (appsyncErr) {
+      // Fallback to mockdata: update deal in localStorage
+      dataSource = 'Mockdata';
+      console.warn('⚠️  [sendAssessmentRequest] AppSync failed:', appsyncErr.message);
+      console.log('📦 [sendAssessmentRequest] Fallback to mockdata - updating deal locally...');
+
+      if (typeof window.Store !== 'undefined' && window.Store.updateDeal) {
+        window.Store.updateDeal(Field.currentDeal.id, { status: 'waiting' });
+        console.log('✅ [sendAssessmentRequest] Mockdata deal updated:', Field.currentDeal.id);
+      } else {
+        console.error('❌ [sendAssessmentRequest] Store not available');
+      }
+    }
+
+    console.log(`📊 [sendAssessmentRequest] Data source: ${dataSource} | Deal ID: ${Field.currentDeal.id}`);
     alert("査定依頼を送信しました。");
     Field.currentDeal = null; Field.pendingItems = []; showScreen(2);
-  } catch (err) { console.error(err); }
+  } catch (err) { console.error('❌ [sendAssessmentRequest] Unexpected error:', err); }
 }
 
 async function completePurchase() {
   try {
-    const { API } = getAmplify();
-    await API.graphql({ query: updateDealMutation, variables: { input: { id: Field.currentDeal.id, status: 'completed' } } });
+    let dataSource = 'AppSync';
+
+    // Try AppSync first
+    try {
+      const { API } = getAmplify();
+      console.log('📡 [completePurchase] Trying AppSync to update deal status to completed...');
+      await API.graphql({ query: updateDealMutation, variables: { input: { id: Field.currentDeal.id, status: 'completed' } } });
+      console.log('✅ [completePurchase] AppSync success! Deal status updated to completed');
+    } catch (appsyncErr) {
+      // Fallback to mockdata: update deal in localStorage
+      dataSource = 'Mockdata';
+      console.warn('⚠️  [completePurchase] AppSync failed:', appsyncErr.message);
+      console.log('📦 [completePurchase] Fallback to mockdata - updating deal locally...');
+
+      if (typeof window.Store !== 'undefined' && window.Store.updateDeal) {
+        window.Store.updateDeal(Field.currentDeal.id, { status: 'completed' });
+        console.log('✅ [completePurchase] Mockdata deal updated:', Field.currentDeal.id);
+      } else {
+        console.error('❌ [completePurchase] Store not available');
+      }
+    }
+
+    console.log(`📊 [completePurchase] Data source: ${dataSource} | Deal ID: ${Field.currentDeal.id}`);
     alert("成約確定しました。");
     showScreen(2);
-  } catch (err) { console.error(err); }
+  } catch (err) { console.error('❌ [completePurchase] Unexpected error:', err); }
 }
 
 async function openNoDealModal() {
   if(!confirm("不成約にしますか？")) return;
   try {
-    const { API } = getAmplify();
-    await API.graphql({ query: updateDealMutation, variables: { input: { id: Field.currentDeal.id, status: 'no_deal' } } });
+    let dataSource = 'AppSync';
+
+    // Try AppSync first
+    try {
+      const { API } = getAmplify();
+      console.log('📡 [openNoDealModal] Trying AppSync to update deal status to no_deal...');
+      await API.graphql({ query: updateDealMutation, variables: { input: { id: Field.currentDeal.id, status: 'no_deal' } } });
+      console.log('✅ [openNoDealModal] AppSync success! Deal status updated to no_deal');
+    } catch (appsyncErr) {
+      // Fallback to mockdata: update deal in localStorage
+      dataSource = 'Mockdata';
+      console.warn('⚠️  [openNoDealModal] AppSync failed:', appsyncErr.message);
+      console.log('📦 [openNoDealModal] Fallback to mockdata - updating deal locally...');
+
+      if (typeof window.Store !== 'undefined' && window.Store.updateDeal) {
+        window.Store.updateDeal(Field.currentDeal.id, { status: 'no_deal' });
+        console.log('✅ [openNoDealModal] Mockdata deal updated:', Field.currentDeal.id);
+      } else {
+        console.error('❌ [openNoDealModal] Store not available');
+      }
+    }
+
+    console.log(`📊 [openNoDealModal] Data source: ${dataSource} | Deal ID: ${Field.currentDeal.id}`);
     showScreen(2);
-  } catch (err) { console.error(err); }
+  } catch (err) { console.error('❌ [openNoDealModal] Unexpected error:', err); }
 }
 
 function handleRealTimeResponse(answer) {
