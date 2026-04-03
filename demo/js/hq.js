@@ -57,10 +57,14 @@ async function initAssessment() {
     let totalProfit = 0;
     all.filter(d => d.status === 'completed').forEach(d => {
       const ans = typeof d.hqAnswer === 'string' ? JSON.parse(d.hqAnswer || "{}") : (d.hqAnswer || {});
-      totalProfit += ((ans.sellPrice || 0) - (ans.buyPrice || 0));
+      // profit フィールドがあれば使用、なければ計算
+      totalProfit += (ans.profit || ((ans.sellPrice || 0) - (ans.buyPrice || 0)));
     });
     const profitEl = document.getElementById('kpi-profit');
-    if (profitEl) profitEl.textContent = '¥' + totalProfit.toLocaleString();
+    if (profitEl) {
+      profitEl.textContent = '¥' + totalProfit.toLocaleString();
+      console.log(`📊 [initAssessment] Total profit today: ¥${totalProfit.toLocaleString()}`);
+    }
 
     // 3. リスト描画
     const list = document.getElementById('queue-list');
@@ -92,8 +96,30 @@ function selectQueue(id) { selectedQueueId = id; initAssessment(); }
 function renderAssessPanel(item) {
   const panel = document.getElementById('assess-panel');
   if (!panel || !item) return;
+
+  // 商品画像を取得（item または items[0] から）
+  let photos = [];
+  if (item.photos) {
+    photos = Array.isArray(item.photos) ? item.photos : [item.photos];
+  } else if (item.items && item.items.length > 0 && item.items[0].photos) {
+    photos = Array.isArray(item.items[0].photos) ? item.items[0].photos : [item.items[0].photos];
+  }
+
+  const photoHtml = photos.length > 0 ? `
+    <div style="margin-bottom:15px;">
+      <label>商品画像</label>
+      <div id="item-photos" style="display:flex; gap:10px; flex-wrap:wrap; border:1px solid #ddd; padding:10px; border-radius:5px;">
+        ${photos.map((photo, idx) => {
+          const src = typeof photo === 'string' && photo.startsWith('data:') ? photo : photo?.base64 || '';
+          return src ? `<img src="${src}" style="max-width:80px; max-height:80px; border-radius:4px; object-fit:cover;">` : '';
+        }).join('')}
+      </div>
+    </div>
+  ` : '';
+
   panel.innerHTML = `
     <h3>${item.customer}様の査定</h3>
+    ${photoHtml}
     <div style="margin-bottom:15px;">
         <label>買取価格(下代)</label>
         <input type="number" id="answer-buy" class="input-field" placeholder="¥ 0">
@@ -116,7 +142,9 @@ async function submitAnswer(id) {
 
   if (buy === 0 || sell === 0) { alert("価格を入力してください"); return; }
 
-  const hqAnswer = JSON.stringify({ buyPrice: buy, sellPrice: sell, comment });
+  // 粗利を計算
+  const profit = sell - buy;
+  const hqAnswer = JSON.stringify({ buyPrice: buy, sellPrice: sell, comment, profit });
   try {
     let dataSource = 'AppSync';
 

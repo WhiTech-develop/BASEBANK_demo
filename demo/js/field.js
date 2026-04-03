@@ -213,7 +213,13 @@ async function selectMedia(mediaId) {
 }
 
 async function addItemToList() {
-  const itemData = { dealID: Field.currentDeal.id, category: Field.selectedCategory, itemName: document.getElementById('item-condition').value || Field.selectedCategory, weight: parseFloat(document.getElementById('weight-input')?.value) || 0 };
+  const itemData = {
+    dealID: Field.currentDeal.id,
+    category: Field.selectedCategory,
+    itemName: document.getElementById('item-condition').value || Field.selectedCategory,
+    weight: parseFloat(document.getElementById('weight-input')?.value) || 0,
+    photos: Field.capturedFiles.map(f => f.base64 || f)  // Base64画像データを含める
+  };
   try {
     let newItem = null;
     let dataSource = 'AppSync';
@@ -226,9 +232,12 @@ async function addItemToList() {
       newItem = res.data.createItem;
       console.log('✅ [addItemToList] AppSync success! Item created:', newItem.id);
 
-      // Upload photos to S3
+      // Upload photos to S3（必要に応じて）
       for (let i = 0; i < Field.capturedFiles.length; i++) {
-          await Storage.put(`deals/${Field.currentDeal.id}/${newItem.id}_${i}.jpg`, Field.capturedFiles[i]);
+          const fileData = Field.capturedFiles[i];
+          // Base64データをBlob に変換して S3 にアップロード（オプション）
+          // const blob = fetch(fileData.base64).then(r => r.blob());
+          // await Storage.put(`deals/${Field.currentDeal.id}/${newItem.id}_${i}.jpg`, blob);
       }
     } catch (appsyncErr) {
       // Fallback to mockdata: create item in localStorage
@@ -241,7 +250,8 @@ async function addItemToList() {
         dealID: Field.currentDeal.id,
         category: itemData.category,
         itemName: itemData.itemName,
-        weight: itemData.weight
+        weight: itemData.weight,
+        photos: itemData.photos  // 画像データを含める
       };
 
       if (typeof window.Store !== 'undefined' && window.Store.addItem) {
@@ -380,13 +390,49 @@ function renderItemsList() {
 document.addEventListener('DOMContentLoaded', () => {
   const sel = document.getElementById('venue-select');
   if (sel) { sel.innerHTML = MockData.venues.map(v => `<option value="${v.id}">${v.name}</option>`).join(''); Field.venueLabel = sel.options[0]?.text; }
+
+  // 画像ファイル入力処理
+  const fileInput = document.getElementById('file-input');
   const photoArea = document.getElementById('photo-area');
+
   if (photoArea) {
+    // photo-area をクリックするとfile inputを開く
     photoArea.onclick = () => {
-      const dummy = new File([""], `img_${Date.now()}.jpg`, { type: "image/jpeg" });
-      Field.capturedFiles.push(dummy);
-      document.getElementById('photo-preview').innerHTML += `<div class="photo-thumb" style="width:50px; height:50px; background:#ddd; border-radius:5px; display:flex; align-items:center; justify-content:center;">📷</div>`;
+      fileInput.click();
     };
   }
+
+  if (fileInput) {
+    // ファイルが選択された時の処理
+    fileInput.onchange = (e) => {
+      console.log('📁 [Image Upload] File selected:', e.target.files.length, 'files');
+      for (let file of e.target.files) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const fileData = {
+            name: file.name,
+            type: file.type,
+            base64: event.target.result
+          };
+          Field.capturedFiles.push(fileData);
+          console.log('✅ [Image Upload] File loaded as Base64:', file.name);
+
+          // サムネイル表示
+          const preview = document.getElementById('photo-preview');
+          const thumb = document.createElement('div');
+          thumb.style.cssText = 'width:60px; height:60px; border-radius:5px; overflow:hidden; border:1px solid #ddd;';
+          const img = document.createElement('img');
+          img.src = fileData.base64;
+          img.style.cssText = 'width:100%; height:100%; object-fit:cover;';
+          thumb.appendChild(img);
+          preview.appendChild(thumb);
+        };
+        reader.readAsDataURL(file);
+      }
+      // ファイル入力をリセット（同じファイルを再度選択可能に）
+      fileInput.value = '';
+    };
+  }
+
   showScreen(0);
 });

@@ -105,8 +105,9 @@
     <div class="form-group"><label class="form-label">状態・コメント</label><input id="item-condition" type="text" class="input-field" placeholder="例：傷なし"></div>
     <div class="photo-area" id="photo-area" style="border:2px dashed #ccc; padding:20px; text-align:center; border-radius:10px; margin-bottom:15px; cursor:pointer;">
       <div class="photo-area-icon"><i class="fa-solid fa-camera" style="font-size:30px; color:#999;"></i></div>
-      <div class="photo-preview" id="photo-preview" style="display:flex; gap:10px; justify-content:center; margin-top:10px;"></div>
+      <div class="photo-preview" id="photo-preview" style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:10px;"></div>
     </div>
+    <input type="file" id="file-input" multiple accept="image/*" style="display:none;">
     <button class="btn btn-success btn-block btn-lg" onclick="addItemToList()">リストに追加</button>
     <div id="items-list-area" class="hidden" style="margin-top:20px;">
         <div id="items-list"></div>
