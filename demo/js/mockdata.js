@@ -222,6 +222,16 @@ window.Store = {
     return null;
   },
   getDeal(id) { return this.getDeals().find(d => d.id === id) || null; },
+  addItem(item) {
+    const deals = this.getDeals();
+    const dealIdx = deals.findIndex(d => d.id === item.dealID);
+    if (dealIdx !== -1) {
+      if (!deals[dealIdx].items) deals[dealIdx].items = [];
+      deals[dealIdx].items.push(item);
+      this.saveDeals(deals);
+    }
+    return item;
+  },
 
   /* --- セッション状態 (現場) --- */
   getSession() {
