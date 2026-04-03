@@ -22,20 +22,42 @@ async function showTab(tabId) {
 
 async function initAssessment() {
   try {
-    const { API } = getAmplify();
-    const res = await API.graphql({ query: listDealsQuery });
-    const all = res.data.listDeals.items;
+    let all = [];
+    let dataSource = 'AppSync';
+
+    // Try AppSync first
+    try {
+      const { API } = getAmplify();
+      console.log('📡 [initAssessment] Trying AppSync...');
+      const res = await API.graphql({ query: listDealsQuery });
+      all = res.data.listDeals.items;
+      console.log('✅ [initAssessment] AppSync success! Got', all.length, 'deals');
+    } catch (appsyncErr) {
+      // Fallback to mockdata
+      dataSource = 'Mockdata';
+      console.warn('⚠️  [initAssessment] AppSync failed:', appsyncErr.message);
+      console.log('📦 [initAssessment] Fallback to mockdata...');
+      if (typeof window.Store !== 'undefined' && window.Store.getDeals) {
+        all = window.Store.getDeals();
+        console.log('✅ [initAssessment] Mockdata loaded! Got', all.length, 'deals');
+      } else {
+        console.error('❌ [initAssessment] Mockdata not available');
+        all = [];
+      }
+    }
 
     // 1. 査定リスト
     const queue = all.filter(d => d.status === 'waiting' || d.status === 'negotiating');
     document.getElementById('queue-badge').textContent = queue.length;
     document.getElementById('kpi-pending-count').textContent = queue.length;
 
+    console.log(`📊 [initAssessment] Data source: ${dataSource} | Queue count: ${queue.length}`);
+
     // 2. 粗利計算
     let totalProfit = 0;
     all.filter(d => d.status === 'completed').forEach(d => {
-      const ans = JSON.parse(d.hqAnswer || "{}");
-      totalProfit += (ans.sellPrice - ans.buyPrice);
+      const ans = typeof d.hqAnswer === 'string' ? JSON.parse(d.hqAnswer || "{}") : (d.hqAnswer || {});
+      totalProfit += ((ans.sellPrice || 0) - (ans.buyPrice || 0));
     });
     const profitEl = document.getElementById('kpi-profit');
     if (profitEl) profitEl.textContent = '¥' + totalProfit.toLocaleString();
@@ -62,7 +84,7 @@ async function initAssessment() {
         }
       }
     }
-  } catch (err) { console.error(err); }
+  } catch (err) { console.error('❌ [initAssessment] Unexpected error:', err); }
 }
 
 function selectQueue(id) { selectedQueueId = id; initAssessment(); }
@@ -96,12 +118,33 @@ async function submitAnswer(id) {
 
   const hqAnswer = JSON.stringify({ buyPrice: buy, sellPrice: sell, comment });
   try {
-    const { API } = getAmplify();
-    await API.graphql({ query: updateDealMutation, variables: { input: { id, status: 'negotiating', hqAnswer } } });
+    let dataSource = 'AppSync';
+
+    // Try AppSync first
+    try {
+      const { API } = getAmplify();
+      console.log('📡 [submitAnswer] Trying AppSync to update deal...');
+      await API.graphql({ query: updateDealMutation, variables: { input: { id, status: 'negotiating', hqAnswer } } });
+      console.log('✅ [submitAnswer] AppSync success! Answer submitted for deal:', id);
+    } catch (appsyncErr) {
+      // Fallback to mockdata: update deal in localStorage
+      dataSource = 'Mockdata';
+      console.warn('⚠️  [submitAnswer] AppSync failed:', appsyncErr.message);
+      console.log('📦 [submitAnswer] Fallback to mockdata - updating deal locally...');
+
+      if (typeof window.Store !== 'undefined' && window.Store.updateDeal) {
+        window.Store.updateDeal(id, { status: 'negotiating', hqAnswer });
+        console.log('✅ [submitAnswer] Mockdata deal updated:', id);
+      } else {
+        console.error('❌ [submitAnswer] Store not available');
+      }
+    }
+
+    console.log(`📊 [submitAnswer] Data source: ${dataSource} | Buy: ¥${buy}, Sell: ¥${sell}`);
     alert("回答送信完了");
     selectedQueueId = null;
     initAssessment();
-  } catch (err) { console.error(err); }
+  } catch (err) { console.error('❌ [submitAnswer] Unexpected error:', err); }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

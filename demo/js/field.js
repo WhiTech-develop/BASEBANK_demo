@@ -64,26 +64,49 @@ function openRegister() {
 
 async function fetchActiveDeals() {
   try {
-    const { API } = getAmplify();
-    const res = await API.graphql({ query: listDealsQuery });
-    const all = res.data.listDeals.items.filter(d => d.staff_name === Field.loggedInStaff.name);
+    let all = [];
+    let dataSource = 'AppSync';
+
+    // Try AppSync first
+    try {
+      const { API } = getAmplify();
+      console.log('📡 [fetchActiveDeals] Trying AppSync...');
+      const res = await API.graphql({ query: listDealsQuery });
+      all = res.data.listDeals.items.filter(d => d.staff_name === Field.loggedInStaff.name);
+      console.log('✅ [fetchActiveDeals] AppSync success! Got', all.length, 'deals');
+    } catch (appsyncErr) {
+      // Fallback to mockdata if AppSync fails (401, network error, etc)
+      dataSource = 'Mockdata';
+      console.warn('⚠️  [fetchActiveDeals] AppSync failed:', appsyncErr.message);
+      console.log('📦 [fetchActiveDeals] Fallback to mockdata...');
+      if (typeof window.Store !== 'undefined' && window.Store.getDeals) {
+        all = window.Store.getDeals().filter(d => d.staff_name === Field.loggedInStaff.name || d.staffName === Field.loggedInStaff.name);
+        console.log('✅ [fetchActiveDeals] Mockdata loaded! Got', all.length, 'deals');
+      } else {
+        console.error('❌ [fetchActiveDeals] Mockdata not available');
+        all = [];
+      }
+    }
+
     const active = all.filter(d => d.status === 'waiting' || d.status === 'negotiating');
     const completed = all.filter(d => d.status === 'completed');
     const noDeal = all.filter(d => d.status === 'no_deal');
 
+    console.log(`📊 [fetchActiveDeals] Data source: ${dataSource} | Active: ${active.length}, Completed: ${completed.length}, NoDeal: ${noDeal.length}`);
+
     let totalBought = 0;
     completed.forEach(d => {
-      const ans = JSON.parse(d.hqAnswer || "{}");
+      const ans = typeof d.hqAnswer === 'string' ? JSON.parse(d.hqAnswer || "{}") : (d.hqAnswer || {});
       totalBought += (ans.buyPrice || 0);
     });
-    
+
     document.getElementById('kpi-buy').textContent = '¥' + totalBought.toLocaleString();
     document.getElementById('kpi-cash').textContent = '¥' + (Field.cashBalance - totalBought).toLocaleString();
 
     renderList('active-deals', active, true, null);
     renderList('completed-deals', completed, false, '#2563eb');
     renderList('no-deal-list', noDeal, false, '#999');
-  } catch (err) { console.error(err); }
+  } catch (err) { console.error('❌ [fetchActiveDeals] Unexpected error:', err); }
 }
 
 function renderList(elementId, items, clickable, color) {
@@ -123,12 +146,44 @@ async function selectMedia(mediaId) {
   const name = document.getElementById('customer-name-input').value || '新規顧客';
   const input = { customer: name, status: 'registering', staff_name: Field.loggedInStaff.name, venueLabel: Field.venueLabel, createdAt: new Date().toISOString() };
   try {
-    const { API } = getAmplify();
-    const res = await API.graphql({ query: createDealMutation, variables: { input } });
-    Field.currentDeal = res.data.createDeal;
+    let createdDeal = null;
+    let dataSource = 'AppSync';
+
+    // Try AppSync first
+    try {
+      const { API } = getAmplify();
+      console.log('📡 [selectMedia] Trying AppSync to create deal...');
+      const res = await API.graphql({ query: createDealMutation, variables: { input } });
+      createdDeal = res.data.createDeal;
+      console.log('✅ [selectMedia] AppSync success! Deal created:', createdDeal.id);
+    } catch (appsyncErr) {
+      // Fallback to mockdata: create deal in localStorage
+      dataSource = 'Mockdata';
+      console.warn('⚠️  [selectMedia] AppSync failed:', appsyncErr.message);
+      console.log('📦 [selectMedia] Fallback to mockdata - creating deal locally...');
+
+      createdDeal = {
+        id: 'temp_' + Date.now(),
+        customer: input.customer,
+        status: input.status,
+        staff_name: input.staff_name,
+        venueLabel: input.venueLabel,
+        createdAt: input.createdAt
+      };
+
+      if (typeof window.Store !== 'undefined' && window.Store.addDeal) {
+        window.Store.addDeal(createdDeal);
+        console.log('✅ [selectMedia] Mockdata deal created:', createdDeal.id);
+      } else {
+        console.error('❌ [selectMedia] Store not available');
+      }
+    }
+
+    console.log(`📊 [selectMedia] Data source: ${dataSource} | Customer: ${createdDeal.customer}`);
+    Field.currentDeal = createdDeal;
     document.getElementById('media-modal').classList.add('hidden');
     showScreen(3);
-  } catch (err) { console.error(err); }
+  } catch (err) { console.error('❌ [selectMedia] Unexpected error:', err); }
 }
 
 async function addItemToList() {
