@@ -61,6 +61,7 @@ export const getItem = /* GraphQL */ `
       weight
       buy_price
       condition
+      photos
       createdAt
       updatedAt
       __typename
@@ -82,6 +83,7 @@ export const listItems = /* GraphQL */ `
         weight
         buy_price
         condition
+        photos
         createdAt
         updatedAt
         __typename
@@ -150,6 +152,7 @@ export const itemsByDealID = /* GraphQL */ `
         weight
         buy_price
         condition
+        photos
         createdAt
         updatedAt
         __typename
