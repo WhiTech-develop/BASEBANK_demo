@@ -7,7 +7,7 @@ function getAmplify() {
   return amp.API ? amp : (amp.default || amp);
 }
 
-const listDealsQuery = `query ListDeals { listDeals { items { id customer status venueLabel hqAnswer createdAt } } }`;
+const listDealsQuery = `query ListDeals { listDeals { items { id customer status venueLabel hqAnswer createdAt items { items { id photos } } } } }`;
 const updateDealMutation = `mutation UpdateDeal($input: UpdateDealInput!) { updateDeal(input: $input) { id status hqAnswer } }`;
 
 let selectedQueueId = null;
@@ -29,7 +29,7 @@ async function initAssessment() {
     try {
       const { API } = getAmplify();
       console.log('📡 [initAssessment] Trying AppSync...');
-      const res = await API.graphql({ query: listDealsQuery });
+      const res = await API.graphql({ query: listDealsQuery, authMode: 'API_KEY' });
       all = res.data.listDeals.items;
       console.log('✅ [initAssessment] AppSync success! Got', all.length, 'deals');
     } catch (appsyncErr) {
@@ -152,7 +152,7 @@ async function submitAnswer(id) {
     try {
       const { API } = getAmplify();
       console.log('📡 [submitAnswer] Trying AppSync to update deal...');
-      await API.graphql({ query: updateDealMutation, variables: { input: { id, status: 'negotiating', hqAnswer } } });
+      await API.graphql({ query: updateDealMutation, variables: { input: { id, status: 'negotiating', hqAnswer } }, authMode: 'API_KEY' });
       console.log('✅ [submitAnswer] AppSync success! Answer submitted for deal:', id);
     } catch (appsyncErr) {
       // Fallback to mockdata: update deal in localStorage

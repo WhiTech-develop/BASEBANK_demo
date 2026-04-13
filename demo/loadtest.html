@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AppSync パフォーマンスシミュレーター | BASEBANK</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Noto Sans JP', 'Inter', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+    }
+    .container { max-width: 1000px; margin: 0 auto; }
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 30px;
+    }
+    .header h1 { font-size: 32px; margin-bottom: 8px; }
+    .header p { font-size: 14px; opacity: 0.9; }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .operation-selector {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .op-button {
+      flex: 1;
+      min-width: 140px;
+      padding: 12px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      background: #f9fafb;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .op-button:hover { border-color: #667eea; background: #f0f4ff; }
+    .op-button.active { border-color: #667eea; background: #667eea; color: white; }
+
+    .control-group {
+      margin-bottom: 20px;
+    }
+    .control-label {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #374151;
+    }
+
+    .slider-group {
+      display: grid;
+      grid-template-columns: 1fr 100px;
+      gap: 16px;
+      align-items: center;
+    }
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: #e5e7eb;
+      outline: none;
+      -webkit-appearance: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #667eea;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #667eea;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    .slider-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #667eea;
+      text-align: right;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    .btn {
+      flex: 1;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+    .btn-primary:hover { background: #5568d3; box-shadow: 0 4px 12px rgba(102,126,234,0.3); }
+    .btn-primary:disabled {
+      background: #cbd5e1;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: #f3f4f6;
+      color: #374151;
+      border: 2px solid #e5e7eb;
+    }
+    .btn-secondary:hover { background: #e5e7eb; }
+
+    .progress-container {
+      margin-top: 20px;
+      display: none;
+    }
+    .progress-container.show { display: block; }
+    .progress-label {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e5e7eb;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .results-container {
+      margin-top: 30px;
+      display: none;
+    }
+    .results-container.show { display: block; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stat-box {
+      background: linear-gradient(135deg, #667eea15, #764ba215);
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-label {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 6px;
+    }
+    .stat-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: #667eea;
+    }
+    .stat-unit {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 4px;
+    }
+
+    .histogram {
+      margin-top: 24px;
+      padding: 16px;
+      background: #f9fafb;
+      border-radius: 8px;
+    }
+    .histogram-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 16px;
+    }
+    .histogram-bar-group {
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .histogram-range {
+      width: 80px;
+      font-size: 12px;
+      color: #6b7280;
+      text-align: right;
+    }
+    .histogram-bar-wrapper {
+      flex: 1;
+      height: 28px;
+      background: white;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+      position: relative;
+    }
+    .histogram-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      transition: width 0.3s ease;
+    }
+    .histogram-info {
+      width: 120px;
+      text-align: right;
+      font-size: 12px;
+      color: #374151;
+    }
+    .histogram-count {
+      font-weight: 600;
+    }
+    .histogram-percent {
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    .message-box {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .message-info {
+      background: #dbeafe;
+      color: #1d4ed8;
+      border: 1px solid #93c5fd;
+    }
+    .message-success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+    .message-warning {
+      background: #fef3c7;
+      color: #b45309;
+      border: 1px solid #fcd34d;
+    }
+
+    .baseline-display {
+      padding: 12px 16px;
+      background: #f3f4f6;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+    .baseline-value {
+      font-weight: 700;
+      color: #667eea;
+      font-size: 18px;
+    }
+
+    @media (max-width: 600px) {
+      .header h1 { font-size: 24px; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .operation-selector { gap: 8px; }
+      .op-button { min-width: 100px; font-size: 12px; padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>⏱️ AppSync パフォーマンスシミュレーター</h1>
+      <p>本番環境の負荷テスト（1件実測 → 200件シミュレーション）</p>
+    </div>
+
+    <!-- Configuration Panel -->
+    <div class="card">
+      <div class="control-group">
+        <div class="control-label">テスト操作</div>
+        <div class="operation-selector">
+          <button class="op-button active" data-op="listDeals">査定依頼送信</button>
+          <button class="op-button" data-op="createItem">画像送信</button>
+          <button class="op-button" data-op="submitAnswer">査定結果送信</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="control-label">シミュレーション件数</div>
+        <div class="slider-group">
+          <input type="range" id="concurrencySlider" min="10" max="500" value="200" step="10">
+          <div class="slider-value"><span id="concurrencyValue">200</span>件</div>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="control-label">推定サーバー処理能力（req/s）</div>
+        <div class="slider-group">
+          <input type="range" id="capacitySlider" min="10" max="1000" value="100" step="10">
+          <div class="slider-value"><span id="capacityValue">100</span></div>
+        </div>
+      </div>
+
+      <div id="baselineDisplay" class="baseline-display" style="display: none;">
+        実測値: <span class="baseline-value" id="baselineMs">-</span> ms（1件）
+      </div>
+
+      <div class="button-group">
+        <button class="btn btn-primary" id="measureBtn" onclick="measureBaseline()">
+          ① 実測ベースライン計測（1件のみ）
+        </button>
+        <button class="btn btn-secondary" id="simulateBtn" onclick="runSimulation()" disabled>
+          ② シミュレーション実行
+        </button>
+      </div>
+
+      <div class="progress-container" id="progressContainer">
+        <div class="progress-label"><span id="progressText">計測中...</span></div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div id="messages"></div>
+
+    <!-- Results Panel -->
+    <div class="card results-container" id="resultsContainer">
+      <div class="stats-grid" id="statsGrid"></div>
+
+      <div class="histogram" id="histogramContainer"></div>
+
+      <div class="message-box message-info" style="margin-top: 20px;">
+        💡 <strong>結果の見方:</strong> 実測値をベースに対数正規分布でシミュレーション。AppSync の並列処理能力が低いほど、レイテンシが増加します。
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========================================
+    // Configuration
+    // ========================================
+    const ENDPOINT = 'https://6cidfqyacjgardk5okmto2e5be.appsync-api.ap-northeast-3.amazonaws.com/graphql';
+    const API_KEY = 'da2-vbpggnlevzfgzbhyt6zuntu3le';
+
+    let selectedOperation = 'listDeals';
+    let baselineMs = null;
+
+    // ========================================
+    // Event Listeners
+    // ========================================
+    document.querySelectorAll('.op-button').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.op-button').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        selectedOperation = e.target.dataset.op;
+        baselineMs = null;
+        document.getElementById('baselineDisplay').style.display = 'none';
+        document.getElementById('simulateBtn').disabled = true;
+        document.getElementById('resultsContainer').classList.remove('show');
+      });
+    });
+
+    document.getElementById('concurrencySlider').addEventListener('input', (e) => {
+      document.getElementById('concurrencyValue').textContent = e.target.value;
+    });
+
+    document.getElementById('capacitySlider').addEventListener('input', (e) => {
+      document.getElementById('capacityValue').textContent = e.target.value;
+    });
+
+    // ========================================
+    // GraphQL Queries
+    // ========================================
+    const queries = {
+      listDeals: `
+        query {
+          listDeals {
+            items {
+              id
+              customer
+              status
+              createdAt
+            }
+          }
+        }
+      `,
+      createItem: `
+        mutation {
+          createItem(input: {
+            dealID: "test_deal_${Date.now()}"
+            category: "テスト"
+            itemName: "テスト商品"
+            weight: 100
+            photos: ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFElEQVR42mNk+M9Qz0AEYBxVSF+FABJADveWkH6oAAAAAElFTkSuQmCC"]
+          }) {
+            id
+          }
+        }
+      `,
+      submitAnswer: `
+        query {
+          listDeals {
+            items {
+              id
+              status
+            }
+          }
+        }
+      `
+    };
+
+    // ========================================
+    // Measurement Functions
+    // ========================================
+    async function measureBaseline() {
+      const measureBtn = document.getElementById('measureBtn');
+      const progressContainer = document.getElementById('progressContainer');
+      const messagesDiv = document.getElementById('messages');
+      messagesDiv.innerHTML = '';
+
+      measureBtn.disabled = true;
+      progressContainer.classList.add('show');
+      document.getElementById('progressText').textContent = '1件を計測中...';
+      document.getElementById('progressFill').style.width = '0%';
+
+      try {
+        const t0 = performance.now();
+        const res = await fetch(ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': API_KEY
+          },
+          body: JSON.stringify({ query: queries[selectedOperation] })
+        });
+
+        const elapsed = Math.round(performance.now() - t0);
+        const data = await res.json();
+        const hasError = !res.ok || (data.errors && data.errors.length > 0);
+
+        document.getElementById('progressFill').style.width = '100%';
+
+        if (hasError) {
+          const errorMsg = data.errors?.[0]?.message || ('HTTP ' + res.status);
+          messagesDiv.innerHTML = `<div class="message-box message-warning">⚠️ AppSync エラー: ${errorMsg}</div>`;
+          baselineMs = null;
+        } else {
+          baselineMs = elapsed;
+          document.getElementById('baselineDisplay').style.display = 'block';
+          document.getElementById('baselineMs').textContent = elapsed;
+          document.getElementById('simulateBtn').disabled = false;
+
+          const opLabel = { listDeals: '査定依頼送信', createItem: '画像送信', submitAnswer: '査定結果送信' }[selectedOperation];
+          if (selectedOperation === 'createItem') {
+            messagesDiv.innerHTML = `
+              <div class="message-box message-success">✅ テストデータ1件を作成しました（DynamoDB に記録されます）</div>
+              <div class="message-box message-info">📊 ベースライン計測完了: ${opLabel} ${elapsed}ms</div>
+            `;
+          } else {
+            messagesDiv.innerHTML = `<div class="message-box message-success">✅ ベースライン計測完了: ${opLabel} ${elapsed}ms</div>`;
+          }
+        }
+      } catch (err) {
+        messagesDiv.innerHTML = `<div class="message-box message-warning">❌ ネットワークエラー: ${err.message}</div>`;
+        baselineMs = null;
+      } finally {
+        measureBtn.disabled = false;
+        setTimeout(() => progressContainer.classList.remove('show'), 500);
+      }
+    }
+
+    // ========================================
+    // Simulation Functions
+    // ========================================
+    function generateLogNormalDistribution(baseline_ms, n, sigma = 0.5) {
+      const mu = Math.log(baseline_ms);
+      const result = [];
+      for (let i = 0; i < n; i++) {
+        const u1 = Math.random(), u2 = Math.random();
+        const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+        const ms = Math.max(Math.round(baseline_ms * 0.2), Math.round(Math.exp(mu + sigma * z)));
+        result.push(ms);
+      }
+      return result;
+    }
+
+    function applyQueueingPressure(latencies, concurrency, capacity) {
+      const utilization = Math.min(0.95, concurrency / capacity);
+      const scaleFactor = 1 / (1 - utilization);
+      return latencies.map(ms => Math.round(ms * scaleFactor));
+    }
+
+    function calculateStats(latencies) {
+      const sorted = [...latencies].sort((a, b) => a - b);
+      const sum = sorted.reduce((a, b) => a + b, 0);
+      const n = sorted.length;
+      return {
+        min: sorted[0],
+        max: sorted[n - 1],
+        avg: Math.round(sum / n),
+        median: sorted[Math.floor(n / 2)],
+        p95: sorted[Math.floor(n * 0.95)],
+        p99: sorted[Math.floor(n * 0.99)]
+      };
+    }
+
+    function calculateHistogram(latencies, buckets = 5) {
+      const max = Math.max(...latencies);
+      const bucketSize = Math.ceil(max / buckets);
+      const hist = Array(buckets).fill(0);
+
+      latencies.forEach(ms => {
+        const bucketIdx = Math.min(Math.floor(ms / bucketSize), buckets - 1);
+        hist[bucketIdx]++;
+      });
+
+      return hist.map((count, i) => ({
+        min: i * bucketSize,
+        max: (i + 1) * bucketSize,
+        count,
+        percent: ((count / latencies.length) * 100).toFixed(1)
+      }));
+    }
+
+    function renderStats(stats) {
+      const statsGrid = document.getElementById('statsGrid');
+      const throughput = (1000 / stats.avg).toFixed(1);
+      statsGrid.innerHTML = `
+        <div class="stat-box">
+          <div class="stat-label">最小</div>
+          <div class="stat-value">${stats.min}</div>
+          <div class="stat-unit">ms</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">最大</div>
+          <div class="stat-value">${stats.max}</div>
+          <div class="stat-unit">ms</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">平均</div>
+          <div class="stat-value">${stats.avg}</div>
+          <div class="stat-unit">ms</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">中央値</div>
+          <div class="stat-value">${stats.median}</div>
+          <div class="stat-unit">ms</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">p95</div>
+          <div class="stat-value">${stats.p95}</div>
+          <div class="stat-unit">ms</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">p99</div>
+          <div class="stat-value">${stats.p99}</div>
+          <div class="stat-unit">ms</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">スループット</div>
+          <div class="stat-value">${throughput}</div>
+          <div class="stat-unit">req/s</div>
+        </div>
+      `;
+    }
+
+    function renderHistogram(histogram) {
+      const container = document.getElementById('histogramContainer');
+      const maxCount = Math.max(...histogram.map(h => h.count));
+
+      let html = '<div class="histogram-title">📊 レイテンシ分布</div>';
+      histogram.forEach(bucket => {
+        const width = (bucket.count / maxCount) * 100;
+        const range = bucket.min === bucket.max - bucket.max + bucket.min
+          ? `${bucket.min}ms`
+          : `${bucket.min}-${bucket.max}ms`;
+
+        html += `
+          <div class="histogram-bar-group">
+            <div class="histogram-range">${range}</div>
+            <div class="histogram-bar-wrapper">
+              <div class="histogram-bar" style="width: ${width}%"></div>
+            </div>
+            <div class="histogram-info">
+              <div class="histogram-count">${bucket.count}件</div>
+              <div class="histogram-percent">${bucket.percent}%</div>
+            </div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    function runSimulation() {
+      if (!baselineMs) return;
+
+      const concurrency = parseInt(document.getElementById('concurrencySlider').value);
+      const capacity = parseInt(document.getElementById('capacitySlider').value);
+      const progressContainer = document.getElementById('progressContainer');
+      const resultsContainer = document.getElementById('resultsContainer');
+
+      progressContainer.classList.add('show');
+      document.getElementById('progressText').textContent = `${concurrency}件をシミュレーション中...`;
+      document.getElementById('progressFill').style.width = '0%';
+
+      // Simulate with progressive rendering
+      setTimeout(() => {
+        const latencies = generateLogNormalDistribution(baselineMs, concurrency);
+        document.getElementById('progressFill').style.width = '30%';
+
+        setTimeout(() => {
+          const pressuredLatencies = applyQueueingPressure(latencies, concurrency, capacity);
+          document.getElementById('progressFill').style.width = '70%';
+
+          setTimeout(() => {
+            const stats = calculateStats(pressuredLatencies);
+            const histogram = calculateHistogram(pressuredLatencies);
+
+            document.getElementById('progressFill').style.width = '100%';
+
+            setTimeout(() => {
+              renderStats(stats);
+              renderHistogram(histogram);
+              resultsContainer.classList.add('show');
+              progressContainer.classList.remove('show');
+
+              const opLabel = { listDeals: '査定依頼送信', createItem: '画像送信', submitAnswer: '査定結果送信' }[selectedOperation];
+              document.getElementById('messages').innerHTML = `
+                <div class="message-box message-success">
+                  ✅ シミュレーション完了: ${opLabel} (${concurrency}件同時アクセス)
+                </div>
+              `;
+            }, 300);
+          }, 500);
+        }, 500);
+      }, 300);
+    }
+  </script>
+</body>
+</html>
