@@ -4,6 +4,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AppSync パフォーマンスシミュレーター | BASEBANK</title>
+
+  <script src="js/lib.js"></script>
+  <script src="aws-exports.js"></script>
+  <script>
+    (function() {
+      const raw = window.Amplify || window['aws-amplify'] || window.aws_amplify;
+      if (raw) {
+        window.Amplify = raw.Amplify || raw.default || raw;
+      }
+    })();
+    window.addEventListener('load', () => {
+      if (window.Amplify && window.awsmobile) {
+        window.Amplify.configure(window.awsmobile);
+        console.log("✅ AWS Amplify Configured");
+      }
+    });
+  </script>
+
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -363,11 +381,16 @@
     // ========================================
     // Configuration
     // ========================================
-    const ENDPOINT = 'https://6cidfqyacjgardk5okmto2e5be.appsync-api.ap-northeast-3.amazonaws.com/graphql';
-    const API_KEY = 'da2-vbpggnlevzfgzbhyt6zuntu3le';
-
     let selectedOperation = 'listDeals';
     let baselineMs = null;
+
+    // Amplify API の取得
+    function getAmplify() {
+      const amp = window.Amplify;
+      if (!amp) throw new Error("Amplify not available");
+      const API = amp.API || (amp.default && amp.default.API);
+      return { API };
+    }
 
     // ========================================
     // Event Listeners
@@ -448,24 +471,18 @@
       document.getElementById('progressFill').style.width = '0%';
 
       try {
+        const { API } = getAmplify();
         const t0 = performance.now();
-        const res = await fetch(ENDPOINT, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': API_KEY
-          },
-          body: JSON.stringify({ query: queries[selectedOperation] })
+        const res = await API.graphql({
+          query: queries[selectedOperation],
+          authMode: 'API_KEY'
         });
-
         const elapsed = Math.round(performance.now() - t0);
-        const data = await res.json();
-        const hasError = !res.ok || (data.errors && data.errors.length > 0);
 
         document.getElementById('progressFill').style.width = '100%';
 
-        if (hasError) {
-          const errorMsg = data.errors?.[0]?.message || ('HTTP ' + res.status);
+        if (res.errors && res.errors.length > 0) {
+          const errorMsg = res.errors?.[0]?.message || 'Unknown error';
           messagesDiv.innerHTML = `<div class="message-box message-warning">⚠️ AppSync エラー: ${errorMsg}</div>`;
           baselineMs = null;
         } else {
@@ -485,7 +502,7 @@
           }
         }
       } catch (err) {
-        messagesDiv.innerHTML = `<div class="message-box message-warning">❌ ネットワークエラー: ${err.message}</div>`;
+        messagesDiv.innerHTML = `<div class="message-box message-warning">❌ エラー: ${err.message}</div>`;
         baselineMs = null;
       } finally {
         measureBtn.disabled = false;
