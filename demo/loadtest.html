@@ -13,13 +13,12 @@
       if (raw) {
         window.Amplify = raw.Amplify || raw.default || raw;
       }
-    })();
-    window.addEventListener('load', () => {
+      // 同期的に configure を実行（load イベントを待たない）
       if (window.Amplify && window.awsmobile) {
         window.Amplify.configure(window.awsmobile);
-        console.log("✅ AWS Amplify Configured");
+        console.log("✅ AWS Amplify Configured (synchronously)");
       }
-    });
+    })();
   </script>
 
   <style>
