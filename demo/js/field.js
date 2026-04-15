@@ -72,7 +72,7 @@ function openRegister() {
 async function fetchActiveDeals() {
   try {
     const { API } = getAmplify();
-    const res = await API.graphql({ query: listDealsQuery });
+    const res = await API.graphql({ query: listDealsQuery, authMode: 'API_KEY' });
     const all = res.data.listDeals.items.filter(d => d.staff_name === Field.loggedInStaff.name);
     const active = all.filter(d => d.status === 'waiting' || d.status === 'negotiating');
     const completed = all.filter(d => d.status === 'completed');
@@ -109,7 +109,7 @@ function renderList(elementId, items, clickable, color) {
 
 async function resumeDeal(dealId) {
   const { API } = getAmplify();
-  const res = await API.graphql({ query: listDealsQuery });
+  const res = await API.graphql({ query: listDealsQuery, authMode: 'API_KEY' });
   const deal = res.data.listDeals.items.find(d => d.id === dealId);
   if (deal && deal.status === 'negotiating') {
     Field.currentDeal = deal;
@@ -131,7 +131,7 @@ async function selectMedia(mediaId) {
   const input = { customer: name, status: 'registering', staff_name: Field.loggedInStaff.name, venueLabel: Field.venueLabel, createdAt: new Date().toISOString() };
   try {
     const { API } = getAmplify();
-    const res = await API.graphql({ query: createDealMutation, variables: { input } });
+    const res = await API.graphql({ query: createDealMutation, variables: { input }, authMode: 'API_KEY' });
     Field.currentDeal = res.data.createDeal;
     document.getElementById('media-modal').classList.add('hidden');
     showScreen(3);
@@ -142,7 +142,7 @@ async function addItemToList() {
   const itemData = { dealID: Field.currentDeal.id, category: Field.selectedCategory, itemName: document.getElementById('item-condition').value || Field.selectedCategory, weight: parseFloat(document.getElementById('weight-input')?.value) || 0 };
   try {
     const { API, Storage } = getAmplify();
-    const res = await API.graphql({ query: createItemMutation, variables: { input: itemData } });
+    const res = await API.graphql({ query: createItemMutation, variables: { input: itemData }, authMode: 'API_KEY' });
     const newItem = res.data.createItem;
     for (let i = 0; i < Field.capturedFiles.length; i++) {
         await Storage.put(`deals/${Field.currentDeal.id}/${newItem.id}_${i}.jpg`, Field.capturedFiles[i]);
@@ -156,7 +156,7 @@ async function addItemToList() {
 async function sendAssessmentRequest() {
   try {
     const { API } = getAmplify();
-    await API.graphql({ query: updateDealMutation, variables: { input: { id: Field.currentDeal.id, status: 'waiting' } } });
+    await API.graphql({ query: updateDealMutation, variables: { input: { id: Field.currentDeal.id, status: 'waiting' } }, authMode: 'API_KEY' });
     alert("査定依頼を送信しました。");
     Field.currentDeal = null; Field.pendingItems = []; showScreen(2);
   } catch (err) { console.error(err); }
@@ -165,7 +165,7 @@ async function sendAssessmentRequest() {
 async function completePurchase() {
   try {
     const { API } = getAmplify();
-    await API.graphql({ query: updateDealMutation, variables: { input: { id: Field.currentDeal.id, status: 'completed' } } });
+    await API.graphql({ query: updateDealMutation, variables: { input: { id: Field.currentDeal.id, status: 'completed' } }, authMode: 'API_KEY' });
     alert("成約確定しました。");
     showScreen(2);
   } catch (err) { console.error(err); }
@@ -175,7 +175,7 @@ async function openNoDealModal() {
   if(!confirm("不成約にしますか？")) return;
   try {
     const { API } = getAmplify();
-    await API.graphql({ query: updateDealMutation, variables: { input: { id: Field.currentDeal.id, status: 'no_deal' } } });
+    await API.graphql({ query: updateDealMutation, variables: { input: { id: Field.currentDeal.id, status: 'no_deal' } }, authMode: 'API_KEY' });
     showScreen(2);
   } catch (err) { console.error(err); }
 }
@@ -211,7 +211,7 @@ function setupSubscriptions() {
   try {
     const { API } = getAmplify();
     
-    API.graphql({ query: onUpdateDealSub }).subscribe({
+    API.graphql({ query: onUpdateDealSub, authMode: 'API_KEY' }).subscribe({
       next: (data) => {
         const updatedDeal = data.value.data.onUpdateDeal;
         console.log("🔔 本部からの更新を検知:", updatedDeal);

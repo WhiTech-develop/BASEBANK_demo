@@ -23,7 +23,7 @@ async function showTab(tabId) {
 async function initAssessment() {
   try {
     const { API } = getAmplify();
-    const res = await API.graphql({ query: listDealsQuery });
+    const res = await API.graphql({ query: listDealsQuery, authMode: 'API_KEY' });
     const all = res.data.listDeals.items;
 
     // 1. 査定リスト
@@ -97,7 +97,7 @@ async function submitAnswer(id) {
   const hqAnswer = JSON.stringify({ buyPrice: buy, sellPrice: sell, comment });
   try {
     const { API } = getAmplify();
-    await API.graphql({ query: updateDealMutation, variables: { input: { id, status: 'negotiating', hqAnswer } } });
+    await API.graphql({ query: updateDealMutation, variables: { input: { id, status: 'negotiating', hqAnswer } }, authMode: 'API_KEY' });
     alert("回答送信完了");
     selectedQueueId = null;
     initAssessment();
