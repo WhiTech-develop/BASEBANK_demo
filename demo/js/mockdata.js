@@ -222,6 +222,22 @@ window.Store = {
     return null;
   },
   getDeal(id) { return this.getDeals().find(d => d.id === id) || null; },
+  addItem(item) {
+    const deals = this.getDeals();
+    const dealIdx = deals.findIndex(d => d.id === item.dealID);
+    if (dealIdx !== -1) {
+      if (!deals[dealIdx].items) deals[dealIdx].items = [];
+
+      // localStorage 容量節約：photos フィールドを除外して保存
+      // （Base64 画像データはメモリ上でのみ保持）
+      const itemForStorage = { ...item };
+      delete itemForStorage.photos;
+
+      deals[dealIdx].items.push(itemForStorage);
+      this.saveDeals(deals);
+    }
+    return item;
+  },
 
   /* --- セッション状態 (現場) --- */
   getSession() {

@@ -98,6 +98,7 @@ export const createItem = /* GraphQL */ `
       weight
       buy_price
       condition
+      photos
       createdAt
       updatedAt
       __typename
@@ -117,6 +118,7 @@ export const updateItem = /* GraphQL */ `
       weight
       buy_price
       condition
+      photos
       createdAt
       updatedAt
       __typename

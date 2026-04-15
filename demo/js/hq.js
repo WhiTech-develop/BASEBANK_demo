@@ -7,7 +7,7 @@ function getAmplify() {
   return amp.API ? amp : (amp.default || amp);
 }
 
-const listDealsQuery = `query ListDeals { listDeals { items { id customer status venueLabel hqAnswer createdAt } } }`;
+const listDealsQuery = `query ListDeals { listDeals { items { id customer status venueLabel hqAnswer createdAt items { items { id photos } } } } }`;
 const updateDealMutation = `mutation UpdateDeal($input: UpdateDealInput!) { updateDeal(input: $input) { id status hqAnswer } }`;
 
 let selectedQueueId = null;
@@ -22,23 +22,49 @@ async function showTab(tabId) {
 
 async function initAssessment() {
   try {
-    const { API } = getAmplify();
-    const res = await API.graphql({ query: listDealsQuery, authMode: 'API_KEY' });
-    const all = res.data.listDeals.items;
+    let all = [];
+    let dataSource = 'AppSync';
+
+    // Try AppSync first
+    try {
+      const { API } = getAmplify();
+      console.log('📡 [initAssessment] Trying AppSync...');
+      const res = await API.graphql({ query: listDealsQuery, authMode: 'API_KEY' });
+      all = res.data.listDeals.items;
+      console.log('✅ [initAssessment] AppSync success! Got', all.length, 'deals');
+    } catch (appsyncErr) {
+      // Fallback to mockdata
+      dataSource = 'Mockdata';
+      console.warn('⚠️  [initAssessment] AppSync failed:', appsyncErr.message);
+      console.log('📦 [initAssessment] Fallback to mockdata...');
+      if (typeof window.Store !== 'undefined' && window.Store.getDeals) {
+        all = window.Store.getDeals();
+        console.log('✅ [initAssessment] Mockdata loaded! Got', all.length, 'deals');
+      } else {
+        console.error('❌ [initAssessment] Mockdata not available');
+        all = [];
+      }
+    }
 
     // 1. 査定リスト
     const queue = all.filter(d => d.status === 'waiting' || d.status === 'negotiating');
     document.getElementById('queue-badge').textContent = queue.length;
     document.getElementById('kpi-pending-count').textContent = queue.length;
 
+    console.log(`📊 [initAssessment] Data source: ${dataSource} | Queue count: ${queue.length}`);
+
     // 2. 粗利計算
     let totalProfit = 0;
     all.filter(d => d.status === 'completed').forEach(d => {
-      const ans = JSON.parse(d.hqAnswer || "{}");
-      totalProfit += (ans.sellPrice - ans.buyPrice);
+      const ans = typeof d.hqAnswer === 'string' ? JSON.parse(d.hqAnswer || "{}") : (d.hqAnswer || {});
+      // profit フィールドがあれば使用、なければ計算
+      totalProfit += (ans.profit || ((ans.sellPrice || 0) - (ans.buyPrice || 0)));
     });
     const profitEl = document.getElementById('kpi-profit');
-    if (profitEl) profitEl.textContent = '¥' + totalProfit.toLocaleString();
+    if (profitEl) {
+      profitEl.textContent = '¥' + totalProfit.toLocaleString();
+      console.log(`📊 [initAssessment] Total profit today: ¥${totalProfit.toLocaleString()}`);
+    }
 
     // 3. リスト描画
     const list = document.getElementById('queue-list');
@@ -62,7 +88,7 @@ async function initAssessment() {
         }
       }
     }
-  } catch (err) { console.error(err); }
+  } catch (err) { console.error('❌ [initAssessment] Unexpected error:', err); }
 }
 
 function selectQueue(id) { selectedQueueId = id; initAssessment(); }
@@ -70,8 +96,30 @@ function selectQueue(id) { selectedQueueId = id; initAssessment(); }
 function renderAssessPanel(item) {
   const panel = document.getElementById('assess-panel');
   if (!panel || !item) return;
+
+  // 商品画像を取得（item または items[0] から）
+  let photos = [];
+  if (item.photos) {
+    photos = Array.isArray(item.photos) ? item.photos : [item.photos];
+  } else if (item.items && item.items.length > 0 && item.items[0].photos) {
+    photos = Array.isArray(item.items[0].photos) ? item.items[0].photos : [item.items[0].photos];
+  }
+
+  const photoHtml = photos.length > 0 ? `
+    <div style="margin-bottom:15px;">
+      <label>商品画像</label>
+      <div id="item-photos" style="display:flex; gap:10px; flex-wrap:wrap; border:1px solid #ddd; padding:10px; border-radius:5px;">
+        ${photos.map((photo, idx) => {
+          const src = typeof photo === 'string' && photo.startsWith('data:') ? photo : photo?.base64 || '';
+          return src ? `<img src="${src}" style="max-width:80px; max-height:80px; border-radius:4px; object-fit:cover;">` : '';
+        }).join('')}
+      </div>
+    </div>
+  ` : '';
+
   panel.innerHTML = `
     <h3>${item.customer}様の査定</h3>
+    ${photoHtml}
     <div style="margin-bottom:15px;">
         <label>買取価格(下代)</label>
         <input type="number" id="answer-buy" class="input-field" placeholder="¥ 0">
@@ -94,14 +142,37 @@ async function submitAnswer(id) {
 
   if (buy === 0 || sell === 0) { alert("価格を入力してください"); return; }
 
-  const hqAnswer = JSON.stringify({ buyPrice: buy, sellPrice: sell, comment });
+  // 粗利を計算
+  const profit = sell - buy;
+  const hqAnswer = JSON.stringify({ buyPrice: buy, sellPrice: sell, comment, profit });
   try {
-    const { API } = getAmplify();
-    await API.graphql({ query: updateDealMutation, variables: { input: { id, status: 'negotiating', hqAnswer } }, authMode: 'API_KEY' });
+    let dataSource = 'AppSync';
+
+    // Try AppSync first
+    try {
+      const { API } = getAmplify();
+      console.log('📡 [submitAnswer] Trying AppSync to update deal...');
+      await API.graphql({ query: updateDealMutation, variables: { input: { id, status: 'negotiating', hqAnswer } }, authMode: 'API_KEY' });
+      console.log('✅ [submitAnswer] AppSync success! Answer submitted for deal:', id);
+    } catch (appsyncErr) {
+      // Fallback to mockdata: update deal in localStorage
+      dataSource = 'Mockdata';
+      console.warn('⚠️  [submitAnswer] AppSync failed:', appsyncErr.message);
+      console.log('📦 [submitAnswer] Fallback to mockdata - updating deal locally...');
+
+      if (typeof window.Store !== 'undefined' && window.Store.updateDeal) {
+        window.Store.updateDeal(id, { status: 'negotiating', hqAnswer });
+        console.log('✅ [submitAnswer] Mockdata deal updated:', id);
+      } else {
+        console.error('❌ [submitAnswer] Store not available');
+      }
+    }
+
+    console.log(`📊 [submitAnswer] Data source: ${dataSource} | Buy: ¥${buy}, Sell: ¥${sell}`);
     alert("回答送信完了");
     selectedQueueId = null;
     initAssessment();
-  } catch (err) { console.error(err); }
+  } catch (err) { console.error('❌ [submitAnswer] Unexpected error:', err); }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
